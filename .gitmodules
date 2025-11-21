@@ -1,0 +1,6 @@
+[submodule "deps/repo_vdag"]
+	path = deps/repo_vdag
+	url = https://github.com/aleksandrberesov/VDAG.git
+[submodule "deps/repo_glm"]
+	path = deps/repo_glm
+	url = https://github.com/bashusha/glm.git
