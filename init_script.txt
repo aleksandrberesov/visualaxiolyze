@@ -1,2 +1,6 @@
 git submodule update --init --recursive
 git submodule sync --recursive
+
+python -m venv .devenv
+.devenv\Scripts\Activate
+deactivate
