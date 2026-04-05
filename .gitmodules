@@ -1,6 +1,6 @@
 [submodule "deps/repo_vdag"]
 	path = deps/repo_vdag
-	url = https://github.com/aleksandrberesov/VisualDAG.git
+	url = https://github.com/aleksandrberesov/GraphVision.git
 [submodule "deps/repo_glm"]
 	path = deps/repo_glm
 	url = https://github.com/bashusha/Axiolyze.git
