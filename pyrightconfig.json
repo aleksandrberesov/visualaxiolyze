@@ -1,0 +1,6 @@
+{
+  "extraPaths": [
+    "deps/repo_vdag",
+    "deps/repo_glm"
+  ]
+}
