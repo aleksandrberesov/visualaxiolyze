@@ -1,4 +1,5 @@
 assets/external/
+.claude/worktrees/
 .web
 *.db
 .states
