@@ -13,6 +13,7 @@ Responsibilities:
 
 from __future__ import annotations
 
+import inspect
 from collections import deque
 from typing import Any, Dict, List, Optional, Tuple, Type, TYPE_CHECKING
 
@@ -83,6 +84,54 @@ def available_transformers() -> List[str]:
     if _TRANSFORMER_REGISTRY is None:
         _TRANSFORMER_REGISTRY = _build_transformer_registry()
     return sorted(_TRANSFORMER_REGISTRY.keys())
+
+
+def describe_transformer(class_name: str) -> Optional[Dict[str, Any]]:
+    """
+    Return the param schema for a transformer's __init__.
+
+    Each entry in 'params' describes one constructor argument:
+      name        – parameter name
+      annotation  – type hint as a readable string ("List[str]", "bool", …)
+      required    – True when the param has no default
+      default     – the default value, or None when required
+    """
+    cls = get_transformer_class(class_name)
+    if cls is None:
+        return None
+
+    sig = inspect.signature(cls.__init__)
+    params = []
+    for name, param in sig.parameters.items():
+        if name == "self":
+            continue
+        if param.kind in (
+            inspect.Parameter.VAR_POSITIONAL,
+            inspect.Parameter.VAR_KEYWORD,
+        ):
+            continue
+
+        ann = param.annotation
+        if ann is inspect.Parameter.empty:
+            ann_str = "Any"
+        elif hasattr(ann, "__origin__"):
+            # Generic alias: List[str], Dict[str, int], Optional[X], …
+            ann_str = str(ann).replace("typing.", "")
+        elif hasattr(ann, "__name__"):
+            # Plain built-in or class: bool, int, str, …
+            ann_str = ann.__name__
+        else:
+            ann_str = str(ann)
+
+        has_default = param.default is not inspect.Parameter.empty
+        params.append({
+            "name":       name,
+            "annotation": ann_str,
+            "required":   not has_default,
+            "default":    param.default if has_default else None,
+        })
+
+    return {"class_name": class_name, "params": params}
 
 
 # ---------------------------------------------------------------------------

@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import bridge_layer.pipeline_registry as registry
 from bridge_layer.bridge import (
     available_transformers,
+    describe_transformer,
     get_transformer_class,
     pipeline_to_ui as _pipeline_to_ui,
     sync_statuses_from_pipeline,
@@ -93,6 +94,8 @@ def _attach_data(
         except Exception:
             pass
 
+    if root_id is None:
+        return None
     stem = Path(file_path).stem
     return root_id, stem
 
@@ -160,6 +163,7 @@ def _load_yaml(
 
     try:
         pipeline = PipelineGraph.load_from_yaml(path)
+        pipeline.restore_data(force=True)  # reattach DataFrame; no-op if source file is gone
         registry.set(session_id, pipeline)
         return _pipeline_to_ui(pipeline)
     except Exception:
@@ -183,3 +187,4 @@ def register() -> None:
     pipeline_hooks.add_transformation = _add_transformation
     pipeline_hooks.save_yaml = _save_yaml
     pipeline_hooks.load_yaml = _load_yaml
+    pipeline_hooks.describe_transformer = describe_transformer
