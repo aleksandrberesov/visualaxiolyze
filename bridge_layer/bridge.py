@@ -19,7 +19,6 @@ from typing import Any, Dict, List, Optional, Tuple, Type, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from axiolyze.core.graph import GraphEdge, GraphVertex, PipelineGraph
-    from axiolyze.core.schema import DataSchema
 
 # ---------------------------------------------------------------------------
 # Status mapping
@@ -125,13 +124,26 @@ def describe_transformer(class_name: str) -> Optional[Dict[str, Any]]:
 
         has_default = param.default is not inspect.Parameter.empty
         params.append({
-            "name":       name,
-            "annotation": ann_str,
-            "required":   not has_default,
-            "default":    param.default if has_default else None,
+            "name":        name,
+            "annotation":  ann_str,
+            "required":    not has_default,
+            "default":     param.default if has_default else None,
+            "is_list":     ann_str.startswith("List") or ann_str.startswith("list"),
+            "is_bool":     ann_str == "bool",
         })
 
     return {"class_name": class_name, "params": params}
+
+
+def get_vertex_columns(
+    pipeline: PipelineGraph,
+    vertex_id: str,
+) -> Optional[Dict[str, List[str]]]:
+    """Return visible columns grouped by type for a manifested vertex."""
+    vertex = pipeline.vertices.get(vertex_id)
+    if vertex is None or not vertex.is_manifested or vertex.state is None:
+        return None
+    return vertex.state.get_visible_columns()
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +182,7 @@ def vertex_to_node(
             "status":               ui_status,
             "transformation_class":  vertex.metadata.get("transformation_class", ""),
             "transformation_config": vertex.transformation_config or {},
+            "errors":               vertex.transformation_errors or [],
         },
         "position":  position or {"x": 0, "y": 0},
         "draggable": True,

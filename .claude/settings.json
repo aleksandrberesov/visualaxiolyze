@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(jobs -l)",
+      "Read(//c/Users/ALEKSA~1/AppData/Local/Temp/claude/c--axiolyzeProject-visualaxiolyze/104937bf-0572-488a-b453-730ff32df44e/tasks//**)"
+    ]
+  }
+}

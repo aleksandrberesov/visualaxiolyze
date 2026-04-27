@@ -13,9 +13,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import bridge_layer.pipeline_registry as registry
 from bridge_layer.bridge import (
-    available_transformers,
     describe_transformer,
     get_transformer_class,
+    get_vertex_columns as _bridge_get_vertex_columns,
     pipeline_to_ui as _pipeline_to_ui,
     sync_statuses_from_pipeline,
 )
@@ -147,6 +147,42 @@ def _add_transformation(
         return None
 
 
+def _get_vertex_columns(
+    session_id: str, vertex_id: str
+) -> Optional[Dict[str, List[str]]]:
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return None
+    return _bridge_get_vertex_columns(pipeline, vertex_id)
+
+
+def _compute_distribution(
+    session_id: str, vertex_id: str, column: str
+) -> Optional[Dict[str, Any]]:
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return None
+    try:
+        return pipeline.compute_distribution(vertex_id, column)
+    except Exception:
+        return None
+
+
+def _compute_correlation(
+    session_id: str, vertex_id: str, method: str
+) -> Optional[Dict[str, Any]]:
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return None
+    try:
+        matrix = pipeline.compute_correlation(vertex_id, method)
+        if matrix is None:
+            return None
+        return {str(k): v for k, v in matrix.to_dict().items()}
+    except Exception:
+        return None
+
+
 def _save_yaml(session_id: str, path: str) -> None:
     pipeline = registry.get(session_id)
     if pipeline is not None:
@@ -188,3 +224,6 @@ def register() -> None:
     pipeline_hooks.save_yaml = _save_yaml
     pipeline_hooks.load_yaml = _load_yaml
     pipeline_hooks.describe_transformer = describe_transformer
+    pipeline_hooks.get_vertex_columns = _get_vertex_columns
+    pipeline_hooks.compute_distribution = _compute_distribution
+    pipeline_hooks.compute_correlation = _compute_correlation
