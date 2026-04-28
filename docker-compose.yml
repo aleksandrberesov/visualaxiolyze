@@ -1,0 +1,23 @@
+services:
+  visualaxiolyze:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: visualaxiolyze:latest
+    container_name: visualaxiolyze
+    restart: unless-stopped
+    ports:
+      - "3322:3322"   # frontend (Reflex web UI)
+      - "8000:8000"   # backend  (Reflex websocket / API)
+    environment:
+      GRAPHVISION_PIPELINE_HOOKS: bridge_layer.hooks_registration
+      GRAPHVISION_TITLE: "Visual Axiolyze"
+      GRAPHVISION_ACCENT_COLOR: "sky"
+      PYTHONPATH: "/app:/app/deps/repo_vdag"
+    volumes:
+      - uploaded_files:/app/deps/repo_vdag/uploaded_files
+      - reflex_web:/app/deps/repo_vdag/.web
+
+volumes:
+  uploaded_files:
+  reflex_web:
