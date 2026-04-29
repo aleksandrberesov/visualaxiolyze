@@ -59,7 +59,7 @@ def _sync_statuses(
 
 
 def _attach_data(
-    session_id: str, file_path: str, ext: str
+    session_id: str, file_path: str, ext: str, schema_path: Optional[str] = None
 ) -> Optional[Tuple[str, str]]:
     import pandas as pd
     from axiolyze.core.graph import PipelineGraph
@@ -70,7 +70,14 @@ def _attach_data(
     except Exception:
         return None
 
-    schema = DataSchema.from_dataframe(df)
+    if schema_path:
+        try:
+            schema = DataSchema.load(schema_path)
+        except Exception:
+            schema = DataSchema.from_dataframe(df)
+    else:
+        schema = DataSchema.from_dataframe(df)
+
     pipeline = registry.get(session_id)
 
     if pipeline is None:

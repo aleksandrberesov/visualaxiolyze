@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(jobs -l)",
-      "Read(//c/Users/ALEKSA~1/AppData/Local/Temp/claude/c--axiolyzeProject-visualaxiolyze/104937bf-0572-488a-b453-730ff32df44e/tasks//**)"
+      "Read(//c/Users/ALEKSA~1/AppData/Local/Temp/claude/c--axiolyzeProject-visualaxiolyze/104937bf-0572-488a-b453-730ff32df44e/tasks//**)",
+      "Bash(.dev/Scripts/python.exe -c \"import reflex; print\\(reflex.__version__\\)\")",
+      "Bash(.dev/Scripts/pip.exe show *)",
+      "Bash(.dev/Scripts/python.exe -c \"import reflex as rx; print\\(dir\\(rx.dialog\\)\\)\")",
+      "Bash(.dev/Scripts/python.exe -c \"import reflex as rx; print\\(hasattr\\(rx, 'spinner'\\)\\)\")",
+      "Bash(.dev/Scripts/python.exe bridge_layer/main.py)"
     ]
   }
 }
