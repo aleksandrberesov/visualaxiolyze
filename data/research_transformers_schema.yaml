@@ -1,0 +1,19 @@
+target_columns:
+- Оценка убытка
+index_columns:
+- 'Unnamed: 0'
+exposure_column: Create new
+exposure_columns:
+- Create new
+numeric_columns:
+- Страховая сумма
+- Количество дней от события до урегулирования
+categorical_columns:
+- Марка
+- YearMonth
+ordered_categorical_columns: []
+fine_time_column: null
+coarse_time_column: null
+timing_columns: []
+datetime_columns: []
+excluded_columns: []
