@@ -13,6 +13,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import bridge_layer.pipeline_registry as registry
 from bridge_layer.bridge import (
+    available_transformers,
+    is_transformers_cached,
     describe_transformer,
     get_transformer_class,
     get_vertex_columns as _bridge_get_vertex_columns,
@@ -230,6 +232,8 @@ def register() -> None:
     pipeline_hooks.add_transformation = _add_transformation
     pipeline_hooks.save_yaml = _save_yaml
     pipeline_hooks.load_yaml = _load_yaml
+    pipeline_hooks.available_transformers = available_transformers
+    pipeline_hooks.is_transformers_cached = is_transformers_cached
     pipeline_hooks.describe_transformer = describe_transformer
     pipeline_hooks.get_vertex_columns = _get_vertex_columns
     pipeline_hooks.compute_distribution = _compute_distribution

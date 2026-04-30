@@ -85,6 +85,10 @@ def available_transformers() -> List[str]:
     return sorted(_TRANSFORMER_REGISTRY.keys())
 
 
+def is_transformers_cached() -> bool:
+    return _TRANSFORMER_REGISTRY is not None
+
+
 def describe_transformer(class_name: str) -> Optional[Dict[str, Any]]:
     """
     Return the param schema for a transformer's __init__.
