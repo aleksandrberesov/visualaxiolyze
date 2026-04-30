@@ -13,7 +13,7 @@ parent repo's submodule pointer is updated in a follow-up commit.
 ## Phase status
 
 - [x] Phase 1 — Foundation (data + auto-naming + spinner)
-- [ ] Phase 2 — Vertex-centric controls
+- [x] Phase 2 — Vertex-centric controls
 - [ ] Phase 3 — Status visuals
 - [ ] Phase 4 — Left panel: transformer palette
 - [ ] Phase 5 — Top menu

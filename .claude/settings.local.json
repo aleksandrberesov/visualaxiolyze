@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(git -C /c/axiolyzeProject/visualaxiolyze log --oneline -20)",
-      "Bash(git -C /c/axiolyzeProject/visualaxiolyze status)"
+      "Bash(git -C /c/axiolyzeProject/visualaxiolyze status)",
+      "Bash(python -c ' *)"
     ]
   }
 }
