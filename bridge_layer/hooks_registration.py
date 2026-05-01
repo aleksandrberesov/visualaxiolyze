@@ -192,6 +192,119 @@ def _compute_correlation(
         return None
 
 
+def _get_schema(session_id: str) -> Optional[List[Dict[str, str]]]:
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return None
+    root_id = pipeline.root_vertex_id
+    if not root_id:
+        return None
+    vertex = pipeline.vertices.get(root_id)
+    if not vertex:
+        return None
+    schema = vertex.metadata.get("schema")
+    if schema is None:
+        return None
+
+    rows: List[Dict[str, str]] = []
+    seen: set = set()
+    service_cols = (
+        list(schema.target_columns)
+        + list(schema.index_columns)
+        + list(getattr(schema, "exposure_columns", []))
+        + list(getattr(schema, "timing_columns", []))
+        + list(getattr(schema, "datetime_columns", []))
+    )
+    for col in service_cols:
+        if col not in seen:
+            rows.append({"name": col, "type": "service"})
+            seen.add(col)
+    for col in schema.numeric_columns:
+        if col not in seen:
+            rows.append({"name": col, "type": "numeric"})
+            seen.add(col)
+    for col in schema.categorical_columns:
+        if col not in seen:
+            rows.append({"name": col, "type": "categorical"})
+            seen.add(col)
+    for col in schema.ordered_categorical_columns:
+        if col not in seen:
+            rows.append({"name": col, "type": "ordered_categorical"})
+            seen.add(col)
+    for col in getattr(schema, "excluded_columns", []):
+        if col not in seen:
+            rows.append({"name": col, "type": "excluded"})
+            seen.add(col)
+    return rows
+
+
+def _update_schema(session_id: str, schema_dict: Dict[str, str]) -> None:
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return
+    root_id = pipeline.root_vertex_id
+    if not root_id:
+        return
+    vertex = pipeline.vertices.get(root_id)
+    if not vertex:
+        return
+    schema = vertex.metadata.get("schema")
+    if schema is None:
+        return
+
+    service = set(
+        list(schema.target_columns)
+        + list(schema.index_columns)
+        + list(getattr(schema, "exposure_columns", []))
+        + list(getattr(schema, "timing_columns", []))
+        + list(getattr(schema, "datetime_columns", []))
+    )
+    numeric: List[str] = []
+    categorical: List[str] = []
+    ordered_categorical: List[str] = []
+    excluded: List[str] = []
+    for col, col_type in schema_dict.items():
+        if col in service:
+            continue
+        if col_type == "numeric":
+            numeric.append(col)
+        elif col_type == "categorical":
+            categorical.append(col)
+        elif col_type == "ordered_categorical":
+            ordered_categorical.append(col)
+        elif col_type == "excluded":
+            excluded.append(col)
+        else:
+            numeric.append(col)
+    schema.numeric_columns = numeric
+    schema.categorical_columns = categorical
+    schema.ordered_categorical_columns = ordered_categorical
+    if hasattr(schema, "excluded_columns"):
+        schema.excluded_columns = excluded
+
+
+def _update_transformation_config(
+    session_id: str,
+    vertex_id: str,
+    class_name: str,
+    config: Dict[str, Any],
+) -> None:
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return
+    vertex = pipeline.vertices.get(vertex_id)
+    if vertex is None:
+        return
+    for edge in pipeline.edges.values():
+        if edge.to_vertex_id == vertex_id:
+            edge.config = config
+            edge.transformation_class = class_name
+            break
+    vertex.transformation_config = config
+    vertex.metadata["transformation_class"] = class_name
+    vertex.transformation_state = "initialized"
+
+
 def _save_yaml(session_id: str, path: str) -> None:
     pipeline = registry.get(session_id)
     if pipeline is not None:
@@ -238,3 +351,6 @@ def register() -> None:
     pipeline_hooks.get_vertex_columns = _get_vertex_columns
     pipeline_hooks.compute_distribution = _compute_distribution
     pipeline_hooks.compute_correlation = _compute_correlation
+    pipeline_hooks.get_schema = _get_schema
+    pipeline_hooks.update_schema = _update_schema
+    pipeline_hooks.update_transformation_config = _update_transformation_config
