@@ -5,7 +5,10 @@
       "Bash(git -C /c/axiolyzeProject/visualaxiolyze status)",
       "Bash(python -c ' *)",
       "Bash(git reset *)",
-      "Bash(python3 -c \"import reflex as rx; print\\(dir\\(rx\\)\\)\")"
+      "Bash(python3 -c \"import reflex as rx; print\\(dir\\(rx\\)\\)\")",
+      "Bash(git mv *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
