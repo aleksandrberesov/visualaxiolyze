@@ -1,7 +1,7 @@
 # User authentication and session persistence
 
 **Created:** 2026-05-01
-**Status:** In progress
+**Status:** Completed
 **Context:** Current architecture keys `pipeline_registry._store` by ephemeral `client_token`.
 When a user closes and reopens the app they get a new token and cannot recover their
 pipeline. A login system replaces the token with a stable `user_id`, enabling session
@@ -12,10 +12,10 @@ Bridge layer and axiolyze backend are untouched.
 
 ## Phase status
 
-- [ ] Phase 1 — Auth foundation (login page + user state)
-- [ ] Phase 2 — Registry re-key (user_id replaces client_token)
-- [ ] Phase 3 — Pipeline persistence (save/load per user on disk)
-- [ ] Phase 4 — Multi-project support (named pipelines per user)
+- [x] Phase 1 — Auth foundation (login page + user state)
+- [x] Phase 2 — Registry re-key (user_id replaces client_token)
+- [x] Phase 3 — Pipeline persistence (save/load per user on disk)
+- [x] Phase 4 — Multi-project support (named pipelines per user)
 
 ---
 

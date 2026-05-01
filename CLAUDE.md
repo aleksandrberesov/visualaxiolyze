@@ -12,6 +12,14 @@ pip install -e ./deps/repo_vdag
 pip install -e ./deps/repo_glm
 ```
 
+**First-time only** — initialize the auth database:
+
+```bash
+cd deps/repo_vdag
+reflex db init
+cd ../..
+```
+
 ## Development Commands
 
 ```bash

@@ -308,6 +308,28 @@ def _update_transformation_config(
     vertex.transformation_state = "initialized"
 
 
+def _restore_pipeline(
+    session_id: str,
+) -> Optional[Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]]:
+    if not session_id:
+        return None
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        pipeline = registry.load_from_disk(session_id)
+        if pipeline is None:
+            return None
+        registry._store[session_id] = pipeline  # store without re-persisting
+    return _pipeline_to_ui(pipeline)
+
+
+def _persist_pipeline(user_id: str) -> None:
+    registry.persist(user_id)
+
+
+def _list_projects(user_id: str) -> List[str]:
+    return registry.list_projects(user_id)
+
+
 def _save_yaml(session_id: str, path: str) -> None:
     pipeline = registry.get(session_id)
     if pipeline is not None:
@@ -354,6 +376,9 @@ def register() -> None:
     pipeline_hooks.get_vertex_columns = _get_vertex_columns
     pipeline_hooks.compute_distribution = _compute_distribution
     pipeline_hooks.compute_correlation = _compute_correlation
+    pipeline_hooks.restore_pipeline = _restore_pipeline
+    pipeline_hooks.persist_pipeline = _persist_pipeline
+    pipeline_hooks.list_projects = _list_projects
     pipeline_hooks.get_schema = _get_schema
     pipeline_hooks.update_schema = _update_schema
     pipeline_hooks.update_transformation_config = _update_transformation_config
