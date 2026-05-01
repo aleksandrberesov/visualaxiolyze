@@ -16,7 +16,7 @@ parent repo's submodule pointer is updated in a follow-up commit.
 - [x] Phase 2 — Vertex-centric controls
 - [x] Phase 3 — Status visuals
 - [x] Phase 4 — Left panel: transformer palette
-- [ ] Phase 5 — Top menu
+- [x] Phase 5 — Top menu
 - [ ] Phase 6 — Settings/Schema split
 - [ ] Phase 7 — Fit semantics
 
