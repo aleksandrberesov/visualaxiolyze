@@ -9,7 +9,9 @@
       "Bash(git mv *)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(Get-ChildItem -Path \"c:\\\\axiolyzeProject\\\\visualaxiolyze\\\\deps\\\\repo_vdag\\\\GraphVision\\\\\" -Recurse -Directory | Select-Object FullName)"
+      "Bash(Get-ChildItem -Path \"c:\\\\axiolyzeProject\\\\visualaxiolyze\\\\deps\\\\repo_vdag\\\\GraphVision\\\\\" -Recurse -Directory | Select-Object FullName)",
+      "Bash(git submodule *)",
+      "Bash(jupyter nbconvert *)"
     ]
   }
 }
