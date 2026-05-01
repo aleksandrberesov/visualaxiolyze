@@ -44,8 +44,8 @@ _STATUS_COLORS: Dict[str, str] = {
     "setted":    "#34D399",
     "fitted":    "#3B82F6",
     "trasformed": "#F87171",
-    "complited": "#9CA3AF",
-    "":          "#FFFFFF",
+    "complited": "#10B981",
+    "":          "#9CA3AF",
 }
 
 # ---------------------------------------------------------------------------
