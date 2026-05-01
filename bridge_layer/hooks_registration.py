@@ -109,18 +109,21 @@ def _attach_data(
     return root_id, stem
 
 
-def _manifest_vertex(session_id: str, node_id: str) -> bool:
+def _manifest_vertex(session_id: str, node_id: str) -> Optional[str]:
     pipeline = registry.get(session_id)
     if pipeline is None:
-        return False
+        return "No dataset loaded. Use File → New graph to load a dataset first."
     vertex = pipeline.vertices.get(node_id)
     if vertex is None:
-        return False
+        return f"Vertex '{node_id}' not found in pipeline"
     try:
         vertex.manifest(pipeline)
-        return True
-    except Exception:
-        return False
+        vertex.transformation_errors = []
+        return None
+    except Exception as e:
+        msg = str(e)
+        vertex.transformation_errors = [msg]
+        return msg
 
 
 def _add_transformation(

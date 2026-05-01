@@ -345,7 +345,7 @@ def sync_statuses_from_pipeline(
         ui_status = BACKEND_TO_UI.get(vertex.transformation_state, "setted")
         node = {
             **node,
-            "data":  {**node["data"],  "status": ui_status},
+            "data":  {**node["data"],  "status": ui_status, "errors": vertex.transformation_errors or []},
             "style": {**node.get("style", {}), "background": _STATUS_COLORS[ui_status]},
         }
         updated.append(node)
