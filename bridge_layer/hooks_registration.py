@@ -20,6 +20,7 @@ from bridge_layer.bridge import (
     get_vertex_columns as _bridge_get_vertex_columns,
     pipeline_to_ui as _pipeline_to_ui,
     sync_statuses_from_pipeline,
+    autofill_schema_params,
 )
 
 
@@ -141,6 +142,20 @@ def _add_transformation(
     if transformer_class is None:
         return None
 
+    # Auto-fill schema-derivable params from the root vertex's DataSchema.
+    # If a required param cannot be resolved, we still create the vertex so
+    # the UI can display the readable error rather than silently dropping it.
+    schema = None
+    root_id = pipeline.root_vertex_id
+    if root_id and root_id in pipeline.vertices:
+        schema = pipeline.vertices[root_id].metadata.get("schema")
+
+    autofill_error: Optional[str] = None
+    try:
+        config = autofill_schema_params(class_name, config, schema)
+    except ValueError as e:
+        autofill_error = str(e)
+
     try:
         vertex_id = pipeline.add_transformation(
             from_vertex_id=parent_id,
@@ -154,6 +169,9 @@ def _add_transformation(
             for edge in pipeline.edges.values():
                 if edge.to_vertex_id == vertex_id:
                     edge.to_vertex_id = ui_node_id
+        # Surface the schema-resolution error on the vertex so the UI shows it
+        if autofill_error and ui_node_id in pipeline.vertices:
+            pipeline.vertices[ui_node_id].transformation_errors = [autofill_error]
         return ui_node_id
     except Exception:
         return None
@@ -284,6 +302,18 @@ def _update_schema(session_id: str, schema_dict: Dict[str, str]) -> None:
     schema.ordered_categorical_columns = ordered_categorical
     if hasattr(schema, "excluded_columns"):
         schema.excluded_columns = excluded
+
+    # Invariant: when multiple semantic exposures exist exactly one must be
+    # promoted to the working exposure via schema.exposure_column.
+    if len(getattr(schema, "exposure_columns", [])) > 1 and not schema.exposure_column:
+        import warnings
+        warnings.warn(
+            "Schema has multiple exposure_columns but exposure_column is not set. "
+            "Select exactly one working exposure in the schema editor so that "
+            "weight_column can be resolved automatically.",
+            UserWarning,
+            stacklevel=2,
+        )
 
 
 def _update_transformation_config(

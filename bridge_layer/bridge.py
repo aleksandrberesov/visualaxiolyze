@@ -17,6 +17,8 @@ import inspect
 from collections import deque
 from typing import Any, Dict, List, Optional, Tuple, Type, TYPE_CHECKING
 
+from bridge_layer.schema_param_map import SCHEMA_PARAM_MAP
+
 if TYPE_CHECKING:
     from axiolyze.core.graph import GraphEdge, GraphVertex, PipelineGraph
 
@@ -127,6 +129,11 @@ def describe_transformer(class_name: str) -> Optional[Dict[str, Any]]:
             ann_str = str(ann)
 
         has_default = param.default is not inspect.Parameter.empty
+        source = (
+            "schema"
+            if name in SCHEMA_PARAM_MAP.get(class_name, {})
+            else "user"
+        )
         params.append({
             "name":        name,
             "annotation":  ann_str,
@@ -134,9 +141,59 @@ def describe_transformer(class_name: str) -> Optional[Dict[str, Any]]:
             "default":     param.default if has_default else None,
             "is_list":     ann_str.startswith("List") or ann_str.startswith("list"),
             "is_bool":     ann_str == "bool",
+            "source":      source,
         })
 
     return {"class_name": class_name, "params": params}
+
+
+def autofill_schema_params(
+    class_name: str,
+    config: Dict[str, Any],
+    schema,  # DataSchema or None
+) -> Dict[str, Any]:
+    """
+    Return a copy of *config* with missing schema-derivable params filled
+    from *schema*.  Params already present in *config* are never overwritten.
+
+    Raises ValueError with a readable message when a required param cannot
+    be resolved from the schema (e.g. exposure_column is not set).
+    """
+    param_map = SCHEMA_PARAM_MAP.get(class_name, {})
+    if not param_map or schema is None:
+        return config
+
+    cls = get_transformer_class(class_name)
+    if cls is None:
+        return config
+
+    sig = inspect.signature(cls.__init__)
+    filled = dict(config)
+
+    for param_name, schema_attr in param_map.items():
+        if param_name in filled:
+            continue  # user supplied it explicitly — respect it
+
+        # Use get_working_exposure() as the single read-path for the weights
+        # column so the semantic-vs-working distinction is honoured.
+        if schema_attr == "exposure_column" and hasattr(schema, "get_working_exposure"):
+            value = schema.get_working_exposure()
+        else:
+            value = getattr(schema, schema_attr, None)
+        empty = value is None or value == []
+
+        param = sig.parameters.get(param_name)
+        required = param is not None and param.default is inspect.Parameter.empty
+
+        if required and empty:
+            raise ValueError(
+                f"{class_name} needs '{param_name}' but the schema has no "
+                f"'{schema_attr}' set — configure it in the schema editor"
+            )
+
+        filled[param_name] = value
+
+    return filled
 
 
 def get_vertex_columns(
@@ -309,6 +366,17 @@ def add_transformation_from_node(
     config: Dict[str, Any] = data.get("transformation_config", {})
     label: str = data.get("label", "")
 
+    schema = None
+    root_id = pipeline.root_vertex_id
+    if root_id and root_id in pipeline.vertices:
+        schema = pipeline.vertices[root_id].metadata.get("schema")
+
+    autofill_error: Optional[str] = None
+    try:
+        config = autofill_schema_params(class_name, config, schema)
+    except ValueError as e:
+        autofill_error = str(e)
+
     vertex_id = pipeline.add_transformation(
         from_vertex_id=parent_vertex_id,
         transformation_class=transformer_class,
@@ -319,6 +387,8 @@ def add_transformation_from_node(
     # Store UI label and class name in vertex metadata for round-tripping
     pipeline.vertices[vertex_id].metadata["label"] = label
     pipeline.vertices[vertex_id].metadata["transformation_class"] = class_name
+    if autofill_error:
+        pipeline.vertices[vertex_id].transformation_errors = [autofill_error]
     return vertex_id
 
 

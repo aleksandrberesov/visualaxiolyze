@@ -43,7 +43,7 @@ Two-layer pattern, by file, in `deps/repo_glm/axiolyze/transformers/`:
 | `TargetEncoder`                      | `GLMTargetTransformation`                   | `target_columns`, `weight_column`      |
 | `CategoryMappingTransformer`         | `GLMCategoryMappingTransformation`          | `weight_column`                        |
 | `NumericToCategoricalTransformer`    | `GLMNumericToCategoricalTransformation`     | `weight_column`                        |
-| `ImputationTransformer`              | `GLMImputationTransformation`               | (check during phase 1)                 |
+| `ImputationTransformer`              | `GLMImputationTransformation`               | `exposure_column` (for 'representative' strategy) |
 | `FeaturePairTransformer`             | `GLMFeaturePairTransformation`              | none                                   |
 | `MathematicalTransformer`            | `GLMMathematicalTransformation`             | none                                   |
 | `CyclicFeatureTransformer`           | `GLMCyclicTransformation`                   | none                                   |
@@ -68,7 +68,7 @@ read `schema.exposure_column` and fail loudly if it is `None`.
 
 ## Phase 1 — Inventory schema-derivable params
 
-**Status:** [ ] not started
+**Status:** [x] done — `bridge_layer/schema_param_map.py` created
 
 **Files:**
 - `deps/repo_glm/axiolyze/transformers/*.py` (read-only)
@@ -98,7 +98,7 @@ read `schema.exposure_column` and fail loudly if it is `None`.
 
 ## Phase 2 — Tag schema params in describe_transformer
 
-**Status:** [ ] not started
+**Status:** [x] done
 
 **Files:**
 - `bridge_layer/bridge.py` (function `describe_transformer`,
@@ -121,7 +121,7 @@ read `schema.exposure_column` and fail loudly if it is `None`.
 
 ## Phase 3 — Auto-fill schema params at construction
 
-**Status:** [ ] not started
+**Status:** [x] done
 
 **Files:**
 - `bridge_layer/hooks_registration.py` (function `_add_transformation`,
@@ -155,7 +155,7 @@ read `schema.exposure_column` and fail loudly if it is `None`.
 
 ## Phase 4 — Single-exposure invariant check
 
-**Status:** [ ] not started
+**Status:** [x] done
 
 **Files:**
 - `deps/repo_glm/axiolyze/core/schema.py`
@@ -184,7 +184,7 @@ read `schema.exposure_column` and fail loudly if it is `None`.
 
 ## Phase 5 — Codify the two-layer convention
 
-**Status:** [ ] not started
+**Status:** [x] done
 
 **Files:**
 - `deps/repo_glm/axiolyze/transformers/base.py`

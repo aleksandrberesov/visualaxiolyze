@@ -56,6 +56,8 @@ Core abstraction is a **DAG of data transformations**:
 - `core/statistics.py`: Descriptive stats, correlation matrices, VIF, stability analysis.
 - `transformers/`: 15+ sklearn-compatible GLM transformers (binning, date handling, cyclic features, target encoding, categorical encoding, mathematical ops). All share `GLMTransformation` / `GLMTransformerMixin` base classes and a `keep_original` flag.
 
+  **Two-layer pattern** — every transformer is a pair: a plain sklearn-compatible *lower layer* (`BinningTransformer`, `TargetEncoder`, …) that takes explicit column names, and a *upper layer* (`GLMBinningTransformation`, `GLMTargetTransformation`, …) that inherits `GLMTransformation`, resolves schema-aware parameters (e.g. `weight_column ← DataSchema.get_working_exposure()`), and delegates computation to the lower layer via `self.transformer`. The upper layer carries `IS_GLM_WRAPPER = True` and exposes `lower_class()` so tooling can identify it without name-pattern matching. Notebook code passes column names explicitly and always works; the bridge layer auto-fills schema-derivable params when a param is absent from the config.
+
 ### Frontend — `deps/repo_vdag/GraphVision/`
 
 Built with [Reflex](https://reflex.dev/) (Python-only reactive UI):
