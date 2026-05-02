@@ -11,7 +11,14 @@
       "Bash(git commit -m ' *)",
       "Bash(Get-ChildItem -Path \"c:\\\\axiolyzeProject\\\\visualaxiolyze\\\\deps\\\\repo_vdag\\\\GraphVision\\\\\" -Recurse -Directory | Select-Object FullName)",
       "Bash(git submodule *)",
-      "Bash(jupyter nbconvert *)"
+      "Bash(jupyter nbconvert *)",
+      "Bash(/Users/tatianaberesova/ViAx/visualaxiolyze/.dev/bin/python -c \"import reflex as rx; c = rx.Config\\(app_name='test'\\); print\\(c.db_url\\)\")",
+      "Bash(/Users/tatianaberesova/ViAx/visualaxiolyze/.dev/bin/python -m reflex db init)",
+      "Bash(git -C /Users/tatianaberesova/ViAx/visualaxiolyze diff HEAD --stat)",
+      "Bash(git -C /Users/tatianaberesova/ViAx/visualaxiolyze status --short)",
+      "Bash(git -C /Users/tatianaberesova/ViAx/visualaxiolyze/deps/repo_vdag status --short)",
+      "Bash(git -C /Users/tatianaberesova/ViAx/visualaxiolyze/deps/repo_vdag diff HEAD --stat)",
+      "Bash(git -C /Users/tatianaberesova/ViAx/visualaxiolyze/deps/repo_vdag diff HEAD)"
     ]
   }
 }
