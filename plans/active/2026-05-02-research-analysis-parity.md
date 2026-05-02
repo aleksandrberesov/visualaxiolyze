@@ -62,7 +62,7 @@ used for distributions and correlations.
 
 ## Phase 1a — Correlation stability metrics in UI
 
-**Status:** [ ] not started
+**Status:** [x] done — 2026-05-02
 
 **Files:**
 - `bridge_layer/bridge.py` — function that returns correlation data to the UI

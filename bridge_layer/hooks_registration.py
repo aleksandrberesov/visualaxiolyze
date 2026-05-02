@@ -208,7 +208,23 @@ def _compute_correlation(
         matrix = pipeline.compute_correlation(vertex_id, method)
         if matrix is None:
             return None
-        return {str(k): v for k, v in matrix.to_dict().items()}
+        matrix_dict = {str(k): v for k, v in matrix.to_dict().items()}
+        stability: Dict[str, Any] = {}
+        if method in ("pearson", "spearman", "kendall"):
+            from axiolyze.core.statistics import compute_matrix_stability
+            st = compute_matrix_stability(matrix, include_vif=True)
+            if st is not None:
+                eig = st.get("eigenvalues") or {}
+                stability = {
+                    "condition_number": st.get("condition_number"),
+                    "rank": st.get("rank"),
+                    "expected_rank": int(matrix.shape[0]),
+                    "determinant": st.get("determinant"),
+                    "eigenvalue_min": eig.get("min"),
+                    "eigenvalue_max": eig.get("max"),
+                    "vif_max": st.get("vif_max"),
+                }
+        return {"matrix": matrix_dict, "stability": stability}
     except Exception:
         return None
 
