@@ -8,7 +8,19 @@
       "Bash(.dev/Scripts/python.exe -c \"import reflex as rx; print\\(dir\\(rx.dialog\\)\\)\")",
       "Bash(.dev/Scripts/python.exe -c \"import reflex as rx; print\\(hasattr\\(rx, 'spinner'\\)\\)\")",
       "Bash(.dev/Scripts/python.exe bridge_layer/main.py)",
-      "Bash(docker compose *)"
+      "Bash(docker compose *)",
+      "Bash(.dev\\\\Scripts\\\\Activate.ps1)",
+      "Bash(.dev\\\\Scripts\\\\python.exe bridge_layer/main.py)",
+      "PowerShell(.dev\\\\Scripts\\\\python.exe bridge_layer/main.py 2>&1)",
+      "PowerShell(.dev\\\\Scripts\\\\python.exe -c \"import reflex as rx; print\\(type\\(rx.base\\)\\); from reflex.base import Base; print\\(Base\\)\" 2>&1)",
+      "PowerShell(.dev\\\\Scripts\\\\python.exe -c \"import reflex_base; print\\(dir\\(reflex_base\\)\\)\" 2>&1)",
+      "PowerShell(.dev\\\\Scripts\\\\python.exe -c \"from reflex_base.base import Base; print\\(Base\\)\" 2>&1)",
+      "PowerShell(.dev\\\\Scripts\\\\python.exe -c \"import pydantic; print\\(pydantic.VERSION\\); from pydantic import BaseModel; print\\(BaseModel\\)\" 2>&1)",
+      "PowerShell(.dev\\\\Scripts\\\\python.exe -c \"import reflex as rx; m = rx.Model; print\\(m\\); print\\(m.__bases__\\)\" 2>&1)",
+      "PowerShell(.dev\\\\Scripts\\\\python.exe -c \"import reflex_base; import os; pkg_dir = os.path.dirname\\(reflex_base.__file__\\); print\\(os.listdir\\(pkg_dir\\)\\)\" 2>&1)",
+      "PowerShell(.dev\\\\Scripts\\\\python.exe -c \"from pydantic import BaseModel; import reflex as rx; print\\(rx.State.__bases__\\)\" 2>&1)",
+      "PowerShell(.dev\\\\Scripts\\\\python.exe -c \"from pydantic import BaseModel; import reflex as rx; s = rx.State.__bases__[0]; print\\(s.__bases__\\)\" 2>&1)",
+      "Read(//c/axiolyzeProject/visualaxiolyze/deps/repo_vdag/GraphVision/models/**)"
     ]
   }
 }
