@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import bridge_layer.pipeline_registry as registry
 from bridge_layer.bridge import (
+    apply_filter_mask,
     available_transformers,
     is_transformers_cached,
     describe_transformer,
@@ -186,37 +187,97 @@ def _get_vertex_columns(
     return _bridge_get_vertex_columns(pipeline, vertex_id)
 
 
+def _distribution_from_df(df: Any, column: str) -> Optional[Dict[str, Any]]:
+    """Compute a distribution result dict directly from a DataFrame column (no pipeline cache)."""
+    import numpy as np
+    import pandas as pd
+    if column not in df.columns:
+        return None
+    s = df[column].dropna()
+    if s.empty:
+        return None
+    hist_counts, _ = np.histogram(s, bins=50)
+    if pd.api.types.is_numeric_dtype(s):
+        statistics: Dict[str, Any] = {
+            "mean": float(s.mean()), "std": float(s.std()),
+            "min": float(s.min()), "max": float(s.max()),
+            "25%": float(s.quantile(0.25)), "50%": float(s.quantile(0.50)),
+            "75%": float(s.quantile(0.75)), "count": int(len(s)),
+        }
+    else:
+        vc = s.value_counts()
+        statistics = {
+            "unique": int(s.nunique()),
+            "top": str(vc.index[0]) if len(vc) > 0 else None,
+            "freq": int(vc.iloc[0]) if len(vc) > 0 else 0,
+            "count": int(len(s)),
+        }
+    return {"histogram": hist_counts.tolist(), "kde": None, "statistics": statistics}
+
+
 def _compute_distribution(
-    session_id: str, vertex_id: str, column: str
+    session_id: str, vertex_id: str, column: str,
+    row_filter: Optional[List[Dict[str, Any]]] = None,
 ) -> Optional[Dict[str, Any]]:
     pipeline = registry.get(session_id)
     if pipeline is None:
         return None
     try:
-        result = pipeline.compute_distribution(vertex_id, column)
-        if result is None:
-            return None
-        kde_curve: List = []
-        if "mean" in result.get("statistics", {}):  # numeric column
+        if row_filter:
             df = pipeline.get_data_for_vertex(vertex_id)
-            if df is not None and column in df.columns:
+            if df is None:
+                return None
+            df = apply_filter_mask(df, row_filter)
+            result = _distribution_from_df(df, column)
+            if result is None:
+                return None
+            kde_curve: List = []
+            if "mean" in result.get("statistics", {}):
                 from axiolyze.core.statistics import compute_kde_curve
                 kde_curve = compute_kde_curve(df[column])
-        return {**result, "kde_curve": kde_curve}
+            return {**result, "kde_curve": kde_curve}
+        else:
+            result = pipeline.compute_distribution(vertex_id, column)
+            if result is None:
+                return None
+            kde_curve = []
+            if "mean" in result.get("statistics", {}):
+                df = pipeline.get_data_for_vertex(vertex_id)
+                if df is not None and column in df.columns:
+                    from axiolyze.core.statistics import compute_kde_curve
+                    kde_curve = compute_kde_curve(df[column])
+            return {**result, "kde_curve": kde_curve}
     except Exception:
         return None
 
 
 def _compute_correlation(
-    session_id: str, vertex_id: str, method: str
+    session_id: str, vertex_id: str, method: str,
+    row_filter: Optional[List[Dict[str, Any]]] = None,
 ) -> Optional[Dict[str, Any]]:
     pipeline = registry.get(session_id)
     if pipeline is None:
         return None
     try:
-        matrix = pipeline.compute_correlation(vertex_id, method)
-        if matrix is None:
-            return None
+        if row_filter:
+            df = pipeline.get_data_for_vertex(vertex_id)
+            if df is None:
+                return None
+            df = apply_filter_mask(df, row_filter)
+            cols_by_type = _bridge_get_vertex_columns(pipeline, vertex_id)
+            if not cols_by_type:
+                return None
+            numeric_cols = [c for c in cols_by_type.get("numeric", []) if c in df.columns]
+            if len(numeric_cols) < 2:
+                return None
+            from axiolyze.core.statistics import compute_correlations, compute_matrix_stability
+            matrix = compute_correlations(df, numeric_cols)
+            if matrix is None:
+                return None
+        else:
+            matrix = pipeline.compute_correlation(vertex_id, method)
+            if matrix is None:
+                return None
         matrix_dict = {str(k): v for k, v in matrix.to_dict().items()}
         stability: Dict[str, Any] = {}
         if method in ("pearson", "spearman", "kendall"):
@@ -234,6 +295,138 @@ def _compute_correlation(
                     "vif_max": st.get("vif_max"),
                 }
         return {"matrix": matrix_dict, "stability": stability}
+    except Exception:
+        return None
+
+
+def _compute_vertex_feature_importance(
+    session_id: str, vertex_id: str,
+    row_filter: Optional[List[Dict[str, Any]]] = None,
+) -> Optional[Dict[str, Any]]:
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return None
+    try:
+        df = pipeline.get_data_for_vertex(vertex_id)
+        if df is None:
+            return None
+        if row_filter:
+            df = apply_filter_mask(df, row_filter)
+        schema = None
+        root_id = pipeline.root_vertex_id
+        if root_id and root_id in pipeline.vertices:
+            schema = pipeline.vertices[root_id].metadata.get("schema")
+        from dataclasses import asdict
+        from axiolyze.core.statistics import compute_feature_importance
+        return asdict(compute_feature_importance(df, schema))
+    except Exception:
+        return None
+
+
+_MV_COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f97316", "#8b5cf6"]
+
+
+def _compute_vertex_grouped_stats(
+    session_id: str,
+    vertex_id: str,
+    value_col: str,
+    primary_col: str,
+    secondary_col: str,
+    row_filter: Optional[List[Dict[str, Any]]] = None,
+) -> Optional[Dict[str, Any]]:
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return None
+    try:
+        df = pipeline.get_data_for_vertex(vertex_id)
+        if df is None:
+            return None
+        if row_filter:
+            df = apply_filter_mask(df, row_filter)
+        schema = None
+        root_id = pipeline.root_vertex_id
+        if root_id and root_id in pipeline.vertices:
+            schema = pipeline.vertices[root_id].metadata.get("schema")
+        exposure_col: Optional[str] = None
+        if schema is not None and hasattr(schema, "get_working_exposure"):
+            exposure_col = schema.get_working_exposure()
+        from axiolyze.core.statistics import compute_grouped_stats
+        result = compute_grouped_stats(
+            df, value_col, primary_col, secondary_col, exposure_col
+        )
+        if result.warning and not result.data:
+            return {"data": [], "bar_specs": [], "warning": result.warning}
+        # Pivot long → wide for Recharts grouped bar chart (top 5 secondary cats)
+        from collections import Counter
+        secondary_counts = Counter(r["secondary_cat"] for r in result.data)
+        top_secondary = [c for c, _ in secondary_counts.most_common(5)]
+        wide: Dict[str, Dict[str, Any]] = {}
+        for row in result.data:
+            prim = row["primary_cat"]
+            sec = row["secondary_cat"]
+            if sec in top_secondary:
+                if prim not in wide:
+                    wide[prim] = {"primary_cat": prim}
+                wide[prim][sec] = round(row["mean"], 4)
+        bar_specs = [
+            {"cat_name": cat, "color": _MV_COLORS[i % len(_MV_COLORS)]}
+            for i, cat in enumerate(top_secondary)
+        ]
+        return {
+            "data": list(wide.values()),
+            "bar_specs": bar_specs,
+            "warning": result.warning,
+        }
+    except Exception:
+        return None
+
+
+def _get_column_filter_options(
+    session_id: str, vertex_id: str
+) -> Optional[Dict[str, Any]]:
+    """Return filter metadata: column names, types, and value ranges/top values."""
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return None
+    try:
+        df = pipeline.get_data_for_vertex(vertex_id)
+        if df is None:
+            return None
+        cols_by_type = _bridge_get_vertex_columns(pipeline, vertex_id)
+        if not cols_by_type:
+            return None
+        numeric_cols = cols_by_type.get("numeric", [])
+        cat_cols = (
+            cols_by_type.get("categorical", [])
+            + cols_by_type.get("ordered_categorical", [])
+        )
+        columns = []
+        for col in numeric_cols:
+            if col not in df.columns:
+                continue
+            s = df[col].dropna()
+            if s.empty:
+                continue
+            columns.append({
+                "col": col,
+                "type": "numeric",
+                "min": float(s.min()),
+                "max": float(s.max()),
+            })
+        for col in cat_cols:
+            if col not in df.columns:
+                continue
+            top_values = (
+                df[col].value_counts().head(30).index.astype(str).tolist()
+            )
+            if not top_values:
+                continue
+            columns.append({
+                "col": col,
+                "type": "categorical",
+                "top_values": top_values,
+            })
+        return {"columns": columns, "total_row_count": len(df)}
     except Exception:
         return None
 
@@ -453,7 +646,10 @@ def register() -> None:
     pipeline_hooks.restore_pipeline = _restore_pipeline
     pipeline_hooks.persist_pipeline = _persist_pipeline
     pipeline_hooks.list_projects = _list_projects
+    pipeline_hooks.compute_vertex_feature_importance = _compute_vertex_feature_importance
+    pipeline_hooks.compute_vertex_grouped_stats = _compute_vertex_grouped_stats
     pipeline_hooks.fit_column_distribution = _fit_column_distribution
+    pipeline_hooks.get_column_filter_options = _get_column_filter_options
     pipeline_hooks.get_schema = _get_schema
     pipeline_hooks.update_schema = _update_schema
     pipeline_hooks.update_transformation_config = _update_transformation_config

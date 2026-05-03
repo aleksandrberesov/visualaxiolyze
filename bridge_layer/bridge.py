@@ -207,6 +207,32 @@ def get_vertex_columns(
     return vertex.state.get_visible_columns()
 
 
+def apply_filter_mask(
+    df: Any,
+    filter_spec: List[Dict[str, Any]],
+) -> Any:
+    """Apply categorical/numeric row filters to a DataFrame for analysis (never modifies pipeline data)."""
+    if not filter_spec:
+        return df
+    import pandas as pd
+    mask = pd.Series(True, index=df.index)
+    for f in filter_spec:
+        col = f.get("column")
+        if not col or col not in df.columns:
+            continue
+        if f.get("type") == "categorical":
+            vals = f.get("values", [])
+            if vals:
+                mask &= df[col].isin(vals)
+        elif f.get("type") == "numeric":
+            lo, hi = f.get("range", [None, None])
+            if lo is not None:
+                mask &= df[col] >= lo
+            if hi is not None:
+                mask &= df[col] <= hi
+    return df[mask]
+
+
 # ---------------------------------------------------------------------------
 # Node / edge style helpers
 # ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 # Research Analysis Parity
 
 **Created:** 2026-05-02
-**Status:** In progress
+**Status:** Complete (all 5 phases done — 2026-05-02)
 **Context:** Session 2026-05-02 — full comparison of
 `data/research_analysis_clean_improved/research_analysis_clean_improved.ipynb`
 against the current app capabilities. The notebook encodes the complete
@@ -212,7 +212,7 @@ target column and recommend a GLM family based on which component dominates.
 
 ## Phase 3 — Feature importance (Decision Tree)
 
-**Status:** [ ] not started
+**Status:** [x] done — 2026-05-02
 
 **Goal:** Rank all features by predictive relevance to the target column
 using a shallow decision tree, so the user knows which features to prioritise
@@ -277,7 +277,7 @@ for transformation.
 
 ## Phase 4 — Multivariate grouped plots
 
-**Status:** [ ] not started
+**Status:** [x] done — 2026-05-02
 
 **Goal:** Visualise a numeric/target column broken down by two categorical
 dimensions simultaneously — the key diagnostic for spotting feature
@@ -340,7 +340,7 @@ interactions before building a GLM.
 
 ## Phase 5 — Interactive pre-analysis row filter UI
 
-**Status:** [ ] not started
+**Status:** [x] done — 2026-05-02
 
 **Priority:** Lower. This phase is significantly larger than 1–4. Include it
 in the sprint only after phases 1–4 are validated.
