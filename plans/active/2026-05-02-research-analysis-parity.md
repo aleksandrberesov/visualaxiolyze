@@ -143,7 +143,7 @@ used for distributions and correlations.
 
 ## Phase 2 — Distribution family fitting
 
-**Status:** [ ] not started
+**Status:** [x] done — 2026-05-02
 
 **Goal:** Fit a 3-component mixture (Exponential + Gamma + Poisson) to the
 target column and recommend a GLM family based on which component dominates.

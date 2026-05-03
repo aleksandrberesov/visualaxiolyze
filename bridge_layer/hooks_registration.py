@@ -238,6 +238,25 @@ def _compute_correlation(
         return None
 
 
+def _fit_column_distribution(
+    session_id: str, vertex_id: str, column: str
+) -> Optional[Dict[str, Any]]:
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return None
+    try:
+        df = pipeline.get_data_for_vertex(vertex_id)
+        if df is None or column not in df.columns:
+            return None
+        from dataclasses import asdict
+        from axiolyze.core.statistics import fit_distribution_mixture, compute_mixture_kde_overlay
+        result = fit_distribution_mixture(df[column])
+        curves = compute_mixture_kde_overlay(df[column], result)
+        return {"mixture": asdict(result), "curves": curves}
+    except Exception:
+        return None
+
+
 def _get_schema(session_id: str) -> Optional[List[Dict[str, str]]]:
     pipeline = registry.get(session_id)
     if pipeline is None:
@@ -434,6 +453,7 @@ def register() -> None:
     pipeline_hooks.restore_pipeline = _restore_pipeline
     pipeline_hooks.persist_pipeline = _persist_pipeline
     pipeline_hooks.list_projects = _list_projects
+    pipeline_hooks.fit_column_distribution = _fit_column_distribution
     pipeline_hooks.get_schema = _get_schema
     pipeline_hooks.update_schema = _update_schema
     pipeline_hooks.update_transformation_config = _update_transformation_config
