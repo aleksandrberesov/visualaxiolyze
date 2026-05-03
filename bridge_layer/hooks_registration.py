@@ -193,7 +193,16 @@ def _compute_distribution(
     if pipeline is None:
         return None
     try:
-        return pipeline.compute_distribution(vertex_id, column)
+        result = pipeline.compute_distribution(vertex_id, column)
+        if result is None:
+            return None
+        kde_curve: List = []
+        if "mean" in result.get("statistics", {}):  # numeric column
+            df = pipeline.get_data_for_vertex(vertex_id)
+            if df is not None and column in df.columns:
+                from axiolyze.core.statistics import compute_kde_curve
+                kde_curve = compute_kde_curve(df[column])
+        return {**result, "kde_curve": kde_curve}
     except Exception:
         return None
 

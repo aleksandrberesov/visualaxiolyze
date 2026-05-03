@@ -102,7 +102,7 @@ used for distributions and correlations.
 
 ## Phase 1b — KDE overlay on distribution plot
 
-**Status:** [ ] not started
+**Status:** [x] done — 2026-05-02
 
 **Files:**
 - `deps/repo_glm/axiolyze/core/statistics.py` — add a helper function
