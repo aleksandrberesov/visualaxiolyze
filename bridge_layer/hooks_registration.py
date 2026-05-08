@@ -450,6 +450,39 @@ def _fit_column_distribution(
         return None
 
 
+def _get_data_preview(
+    session_id: str, vertex_id: str, n_rows: int = 100
+) -> Optional[Dict[str, Any]]:
+    import math
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return None
+    try:
+        # For the root vertex, get the raw dataframe directly.
+        # get_data_for_vertex would call dropna() across all columns, which
+        # can silently discard most rows or return None if the vertex state
+        # isn't fully initialised yet.
+        if vertex_id == pipeline.root_vertex_id:
+            df = pipeline.get_data()
+        else:
+            df = pipeline.get_data_for_vertex(vertex_id)
+        if df is None or df.empty:
+            return None
+        total_rows = len(df)
+        preview = df.head(n_rows)
+        columns = list(preview.columns)
+        rows = [
+            [
+                "" if (v is None or (isinstance(v, float) and math.isnan(v))) else str(v)
+                for v in row
+            ]
+            for row in preview.itertuples(index=False, name=None)
+        ]
+        return {"columns": columns, "rows": rows, "total_rows": total_rows}
+    except Exception:
+        return None
+
+
 def _get_schema(session_id: str) -> Optional[List[Dict[str, str]]]:
     pipeline = registry.get(session_id)
     if pipeline is None:
@@ -653,3 +686,4 @@ def register() -> None:
     pipeline_hooks.get_schema = _get_schema
     pipeline_hooks.update_schema = _update_schema
     pipeline_hooks.update_transformation_config = _update_transformation_config
+    pipeline_hooks.get_data_preview = _get_data_preview
