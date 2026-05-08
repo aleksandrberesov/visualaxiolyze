@@ -8,6 +8,8 @@ by a real axiolyze + pipeline_registry implementation.
 
 from __future__ import annotations
 
+import contextlib
+import logging as _logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -23,6 +25,39 @@ from bridge_layer.bridge import (
     sync_statuses_from_pipeline,
     autofill_schema_params,
 )
+
+
+# ---------------------------------------------------------------------------
+# Log capture — routes axiolyze logger output to pipeline_hooks.pending_logs
+# ---------------------------------------------------------------------------
+
+class _UILogHandler(_logging.Handler):
+    def __init__(self) -> None:
+        super().__init__()
+        self.records: List[Dict[str, str]] = []
+
+    def emit(self, record: _logging.LogRecord) -> None:
+        level_map = {
+            _logging.WARNING: "warning",
+            _logging.ERROR: "error",
+            _logging.CRITICAL: "error",
+        }
+        level = level_map.get(record.levelno, "info")
+        self.records.append({"message": self.format(record), "level": level})
+
+
+@contextlib.contextmanager
+def _capture_logs():
+    """Capture axiolyze log records; write results to pipeline_hooks.pending_logs."""
+    from GraphVision.models import pipeline_hooks
+    handler = _UILogHandler()
+    handler.setFormatter(_logging.Formatter("%(message)s"))
+    _logging.getLogger("axiolyze").addHandler(handler)
+    try:
+        yield
+    finally:
+        _logging.getLogger("axiolyze").removeHandler(handler)
+        pipeline_hooks.pending_logs = handler.records
 
 
 # ---------------------------------------------------------------------------
@@ -118,14 +153,15 @@ def _manifest_vertex(session_id: str, node_id: str) -> Optional[str]:
     vertex = pipeline.vertices.get(node_id)
     if vertex is None:
         return f"Vertex '{node_id}' not found in pipeline"
-    try:
-        vertex.manifest(pipeline)
-        vertex.transformation_errors = []
-        return None
-    except Exception as e:
-        msg = str(e)
-        vertex.transformation_errors = [msg]
-        return msg
+    with _capture_logs():
+        try:
+            vertex.manifest(pipeline)
+            vertex.transformation_errors = []
+            return None
+        except Exception as e:
+            msg = str(e)
+            vertex.transformation_errors = [msg]
+            return msg
 
 
 def _add_transformation(
