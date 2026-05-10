@@ -17,8 +17,6 @@ import inspect
 from collections import deque
 from typing import Any, Dict, List, Optional, Tuple, Type, TYPE_CHECKING
 
-from bridge_layer.schema_param_map import SCHEMA_PARAM_MAP
-
 if TYPE_CHECKING:
     from axiolyze.core.graph import GraphEdge, GraphVertex, PipelineGraph
 
@@ -129,11 +127,11 @@ def describe_transformer(class_name: str) -> Optional[Dict[str, Any]]:
             ann_str = str(ann)
 
         has_default = param.default is not inspect.Parameter.empty
-        source = (
-            "schema"
-            if name in SCHEMA_PARAM_MAP.get(class_name, {})
-            else "user"
-        )
+        
+        # SCHEMA_PARAMS from the class itself (self-describing backend)
+        param_map = getattr(cls, "SCHEMA_PARAMS", {})
+        source = "schema" if name in param_map else "user"
+        
         params.append({
             "name":        name,
             "annotation":  ann_str,
@@ -159,12 +157,13 @@ def autofill_schema_params(
     Raises ValueError with a readable message when a required param cannot
     be resolved from the schema (e.g. exposure_column is not set).
     """
-    param_map = SCHEMA_PARAM_MAP.get(class_name, {})
-    if not param_map or schema is None:
-        return config
-
     cls = get_transformer_class(class_name)
     if cls is None:
+        return config
+
+    # SCHEMA_PARAMS from the class itself (self-describing backend)
+    param_map = getattr(cls, "SCHEMA_PARAMS", {})
+    if not param_map or schema is None:
         return config
 
     sig = inspect.signature(cls.__init__)

@@ -29,16 +29,15 @@
           │                                                     │
           │  pipeline_registry.py   — session → YAML on disk   │
           │    get/set/persist/load_from_disk/list_projects()  │
-          │                                                     │
-          │  schema_param_map.py    — param → DataSchema attr  │
-          │    SCHEMA_PARAM_MAP     — weight_col, target_cols… │
           └──────────────┬──────────────────┬───────────────────┘
                          │                  │
            ┌─────────────▼──────┐  ┌────────▼──────────────────────────────┐
            │  BACKEND           │  │  FRONTEND  (deps/repo_vdag/GraphVision/)│
            │  (deps/repo_glm/   │  │                                        │
            │   axiolyze/)       │  │  GraphVision.py  — Reflex app init     │
-           └────────────────────┘  │    routes: / /login /register          │
+           │  transformers/     │  │    routes: / /login /register          │
+           │    SCHEMA_PARAMS   │  │    loads hooks via env var             │
+           └────────────────────┘  │                                        │
                                    │    loads hooks via env var             │
                                    │                                        │
                                    │  models/           — Reflex states     │
@@ -264,7 +263,7 @@ User action in ReactFlow
 |---|---|---|
 | **Hook slots** | `pipeline_hooks.py` | Decouple GraphVision from axiolyze — hooks are no-ops until bridge registers them |
 | **Two-layer transformers** | `transformers/` | Upper `GLM*` resolves schema params; lower layer is pure sklearn |
-| **Schema param auto-fill** | `schema_param_map.py` + `bridge.py` | `weight_column`, `exposure_column`, `target_columns` filled from `DataSchema` automatically |
+| **Schema param auto-fill** | `GLMTransformation.SCHEMA_PARAMS` | `weight_column`, `exposure_column`, `target_columns` filled from `DataSchema` automatically |
 | **Lazy manifestation** | `vertex_manifestation.py` | Vertices can exist schema-only (portable) or with data; data is fetched on demand |
 | **BFS layout** | `bridge.py:_layout_positions()` | Nodes auto-positioned in levels based on DAG depth |
 | **YAML persistence** | `pipeline_registry.py` | Pipelines saved as YAML with data source references, not raw data |
