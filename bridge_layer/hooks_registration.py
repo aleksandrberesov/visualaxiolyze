@@ -64,6 +64,19 @@ def _capture_logs():
 # Hook implementations
 # ---------------------------------------------------------------------------
 
+def _get_vertex_schema(vertex: Any) -> Optional[Any]:
+    schema = vertex.metadata.get("schema")
+    if schema is None and hasattr(vertex, "state") and vertex.state is not None:
+        schema = vertex.state.schema
+
+    if isinstance(schema, dict):
+        from axiolyze.core.schema import DataSchema
+        schema = DataSchema.from_dict(schema)
+        # Update metadata for future calls
+        vertex.metadata["schema"] = schema
+    return schema
+
+
 def _get_pipeline(session_id: str) -> Optional[Any]:
     return registry.get(session_id)
 
@@ -172,11 +185,16 @@ def _add_transformation(
     ui_node_id: str,
 ) -> Optional[str]:
     pipeline = registry.get(session_id)
-    if pipeline is None or not parent_id:
+    if pipeline is None:
+        _logging.error(f"[_add_transformation] Pipeline not found for session_id: {session_id}")
+        return None
+    if not parent_id:
+        _logging.error(f"[_add_transformation] parent_id is empty for session_id: {session_id}")
         return None
 
     transformer_class = get_transformer_class(class_name)
     if transformer_class is None:
+        _logging.error(f"[_add_transformation] Transformer class '{class_name}' not found")
         return None
 
     # Auto-fill schema-derivable params from the root vertex's DataSchema.
@@ -185,7 +203,7 @@ def _add_transformation(
     schema = None
     root_id = pipeline.root_vertex_id
     if root_id and root_id in pipeline.vertices:
-        schema = pipeline.vertices[root_id].metadata.get("schema")
+        schema = _get_vertex_schema(pipeline.vertices[root_id])
 
     autofill_error: Optional[str] = None
     try:
@@ -198,19 +216,14 @@ def _add_transformation(
             from_vertex_id=parent_id,
             transformation_class=transformer_class,
             config=config,
+            new_vertex_id=ui_node_id,
         )
-        # Preserve the UI node id as the vertex id so they stay in sync
-        if vertex_id != ui_node_id and vertex_id in pipeline.vertices:
-            pipeline.vertices[ui_node_id] = pipeline.vertices.pop(vertex_id)
-            pipeline.vertices[ui_node_id].vertex_id = ui_node_id
-            for edge in pipeline.edges.values():
-                if edge.to_vertex_id == vertex_id:
-                    edge.to_vertex_id = ui_node_id
         # Surface the schema-resolution error on the vertex so the UI shows it
         if autofill_error and ui_node_id in pipeline.vertices:
             pipeline.vertices[ui_node_id].transformation_errors = [autofill_error]
         return ui_node_id
-    except Exception:
+    except Exception as e:
+        _logging.error(f"[_add_transformation] Failed to add transformation: {e}", exc_info=True)
         return None
 
 
@@ -351,7 +364,7 @@ def _compute_vertex_feature_importance(
         schema = None
         root_id = pipeline.root_vertex_id
         if root_id and root_id in pipeline.vertices:
-            schema = pipeline.vertices[root_id].metadata.get("schema")
+            schema = _get_vertex_schema(pipeline.vertices[root_id])
         from dataclasses import asdict
         from axiolyze.core.statistics import compute_feature_importance
         return asdict(compute_feature_importance(df, schema))
@@ -382,7 +395,7 @@ def _compute_vertex_grouped_stats(
         schema = None
         root_id = pipeline.root_vertex_id
         if root_id and root_id in pipeline.vertices:
-            schema = pipeline.vertices[root_id].metadata.get("schema")
+            schema = _get_vertex_schema(pipeline.vertices[root_id])
         exposure_col: Optional[str] = None
         if schema is not None and hasattr(schema, "get_working_exposure"):
             exposure_col = schema.get_working_exposure()
@@ -529,7 +542,7 @@ def _get_schema(session_id: str) -> Optional[List[Dict[str, str]]]:
     vertex = pipeline.vertices.get(root_id)
     if not vertex:
         return None
-    schema = vertex.metadata.get("schema")
+    schema = _get_vertex_schema(vertex)
     if schema is None:
         return None
 
@@ -575,7 +588,7 @@ def _update_schema(session_id: str, schema_dict: Dict[str, str]) -> None:
     vertex = pipeline.vertices.get(root_id)
     if not vertex:
         return
-    schema = vertex.metadata.get("schema")
+    schema = _get_vertex_schema(vertex)
     if schema is None:
         return
 
@@ -658,8 +671,8 @@ def _restore_pipeline(
     return _pipeline_to_ui(pipeline)
 
 
-def _persist_pipeline(user_id: str) -> None:
-    registry.persist(user_id)
+def _persist_pipeline(session_id: str) -> None:
+    registry.persist(session_id)
 
 
 def _list_projects(user_id: str) -> List[str]:
