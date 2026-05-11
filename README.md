@@ -30,6 +30,18 @@ python bridge_layer/main.py
 
 The app starts at `http://localhost:3000`.
 
+## Docker
+
+Build and save the app as a Docker image:
+
+```bash
+# Windows
+.\scripts\build_and_save.ps1
+
+# Linux/Bash
+bash scripts/build_and_save.sh
+```
+
 ## First login
 
 Navigate to `/register` to create your first account, then log in at `/login`.

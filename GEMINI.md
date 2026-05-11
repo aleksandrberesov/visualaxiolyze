@@ -35,6 +35,18 @@ pytest                          # from deps/repo_glm, uses tests/pytest.ini
 pytest tests/path/to_test.py    # single test file
 ```
 
+## Docker
+
+To build and save the application as a Docker container:
+
+```bash
+# Using PowerShell (Windows)
+.\scripts\build_and_save.ps1
+
+# Using Bash
+bash scripts/build_and_save.sh
+```
+
 ## Architecture
 
 Three-layer structure:
