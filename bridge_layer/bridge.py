@@ -56,10 +56,13 @@ def _build_transformer_registry() -> Dict[str, Type]:
     """Return {class_name: class} for every GLM transformer."""
     try:
         import axiolyze.transformers as t
+        glm_base = getattr(t, 'GLMTransformation', None)
         registry: Dict[str, Type] = {}
         for name in t.__all__:
             obj = getattr(t, name, None)
-            if obj is not None and isinstance(obj, type):
+            if (obj is not None and isinstance(obj, type)
+                    and getattr(obj, 'IS_GLM_WRAPPER', False)
+                    and obj is not glm_base):
                 registry[name] = obj
         return registry
     except ImportError:
