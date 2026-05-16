@@ -212,19 +212,23 @@ def _add_transformation(
         autofill_error = str(e)
 
     try:
-        vertex_id = pipeline.add_transformation(
+        pipeline.add_transformation(
             from_vertex_id=parent_id,
             transformation_class=transformer_class,
             config=config,
             new_vertex_id=ui_node_id,
         )
-        # Surface the schema-resolution error on the vertex so the UI shows it
-        if autofill_error and ui_node_id in pipeline.vertices:
-            pipeline.vertices[ui_node_id].transformation_errors = [autofill_error]
-        return ui_node_id
     except Exception as e:
         _logging.error(f"[_add_transformation] Failed to add transformation: {e}", exc_info=True)
         return None
+
+    # Surface the schema-resolution error on the vertex so the UI shows it
+    if autofill_error and ui_node_id in pipeline.vertices:
+        vertex = pipeline.vertices[ui_node_id]
+        if autofill_error not in vertex.transformation_errors:
+            vertex.transformation_errors = [autofill_error]
+
+    return ui_node_id
 
 
 def _get_vertex_columns(
