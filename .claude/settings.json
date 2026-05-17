@@ -26,7 +26,11 @@
       "Bash(python -c \"import reflex_base; import os; print\\(os.path.dirname\\(reflex_base.__file__\\)\\)\")",
       "Bash(python -c \"import reflex as rx; import inspect; print\\(inspect.getfile\\(type\\(rx.input\\(\\)\\)\\)\\)\")",
       "Bash(python -c \"from reflex_components_core.core.debounce import DebounceInput; import inspect; print\\(inspect.getfile\\(DebounceInput\\)\\)\")",
-      "Bash(python -c \"import reflex as rx; print\\([x for x in dir\\(rx.el\\) if 'style' in x.lower\\(\\)]\\)\")"
+      "Bash(python -c \"import reflex as rx; print\\([x for x in dir\\(rx.el\\) if 'style' in x.lower\\(\\)]\\)\")",
+      "Bash(python -c \"from reflex_components_core.base import fragment; print\\(type\\(fragment\\)\\); print\\(fragment\\)\")",
+      "Bash(python -c \"import reflex_components_core.base as b; print\\(dir\\(b\\)\\)\")",
+      "Bash(python -c \"import reflex_components_core.base; import inspect; print\\(inspect.getfile\\(reflex_components_core.base\\)\\)\")",
+      "Bash(python -c \"from reflex_components_core.base.fragment import fragment; print\\(type\\(fragment\\), fragment\\)\")"
     ]
   }
 }
