@@ -21,7 +21,9 @@
       "PowerShell(.dev\\\\Scripts\\\\python.exe -c \"from pydantic import BaseModel; import reflex as rx; print\\(rx.State.__bases__\\)\" 2>&1)",
       "PowerShell(.dev\\\\Scripts\\\\python.exe -c \"from pydantic import BaseModel; import reflex as rx; s = rx.State.__bases__[0]; print\\(s.__bases__\\)\" 2>&1)",
       "Read(//c/axiolyzeProject/visualaxiolyze/deps/repo_vdag/GraphVision/models/**)",
-      "Bash(.dev/Scripts/python.exe -c ' *)"
+      "Bash(.dev/Scripts/python.exe -c ' *)",
+      "Bash(pip show *)",
+      "Bash(python -c \"import reflex_base; import os; print\\(os.path.dirname\\(reflex_base.__file__\\)\\)\")"
     ]
   }
 }
