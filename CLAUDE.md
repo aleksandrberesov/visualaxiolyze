@@ -58,6 +58,10 @@ Core abstraction is a **DAG of data transformations**:
 
   **Two-layer pattern** — every transformer is a pair: a plain sklearn-compatible *lower layer* (`BinningTransformer`, `TargetEncoder`, …) that takes explicit column names, and a *upper layer* (`GLMBinningTransformation`, `GLMTargetTransformation`, …) that inherits `GLMTransformation`, resolves schema-aware parameters (e.g. `weight_column ← DataSchema.get_working_exposure()`), and delegates computation to the lower layer via `self.transformer`. The upper layer carries `IS_GLM_WRAPPER = True` and exposes `lower_class()` so tooling can identify it without name-pattern matching. Notebook code passes column names explicitly and always works; the bridge layer auto-fills schema-derivable params when a param is absent from the config.
 
+  **`IS_GLM_WRAPPER` registration rule** — `bridge_layer/bridge.py:_build_transformer_registry()` filters `axiolyze.transformers.__all__` to only classes with `IS_GLM_WRAPPER = True`, excluding the `GLMTransformation` base class itself. `GLMColumnNameTransliterator` is a special case: it does **not** inherit from `GLMTransformation` (its MRO is `object`), so it declares `IS_GLM_WRAPPER = True` directly in its class body. The resulting UI-visible list is 13 GLM wrapper classes.
+
+  **Manifest error isolation** — `PipelineGraph.add_transformation()` (`core/graph.py`) catches exceptions from `vertex.manifest()` and stores them on the vertex (`transformation_errors`, state `unchecked`) instead of raising. This ensures the vertex is always created in the backend DAG even when the transformer constructor receives invalid config — the UI node is never silently rolled back.
+
 ### Frontend — `deps/repo_vdag/GraphVision/`
 
 Built with [Reflex](https://reflex.dev/) (Python-only reactive UI):
@@ -66,6 +70,12 @@ Built with [Reflex](https://reflex.dev/) (Python-only reactive UI):
 - `pages/main.py`: Top-level layout — control panel + plot area.
 - `components/`: Reusable UI pieces (control_panel, graph visualization via React Flow, upload_box).
 - `models/`: Reactive state — `GraphState`, `NodeState`. Node colors reflect pipeline state: setted → fitted → transformed → completed.
+
+**Key UI state details:**
+- `ConfigState` (`models/config_state.py`) manages the transformer config dialog. `available_columns` holds columns from the parent vertex; `selected_columns_per_param` (computed var) parses each list-param's comma-sep value into `Dict[str, List[str]]`; `toggle_column(param_name, col)` adds/removes a column from a param's value.
+- `config_panel.py` — list-type params render clickable column badges (green = selected, gray = unselected) above a text input fallback. Badge color uses substring containment on the param value string (`param_value_var.contains(col)`).
+- File menu: **"Load data (CSV / Parquet)…"** opens the dataset upload dialog (creates a new graph); **"Load saved graph (JSON)…"** loads a previously exported graph JSON. The control panel shows a "Load data" button in the empty state (no dataset loaded).
+- `new_project()` in `GraphState` captures the old project name before overwriting it and emits `rx.toast.success` confirming the auto-save.
 
 ### Data Flow
 
