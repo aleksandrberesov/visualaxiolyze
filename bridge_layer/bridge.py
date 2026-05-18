@@ -235,22 +235,6 @@ def apply_filter_mask(
     return df[mask]
 
 
-# ---------------------------------------------------------------------------
-# Node / edge style helpers
-# ---------------------------------------------------------------------------
-
-def _node_style(status: str) -> Dict[str, str]:
-    return {
-        "background":     _STATUS_COLORS.get(status, "#FFFFFF"),
-        "color":          "#000000",
-        "border":         "1px solid #000000",
-        "width":          "150px",
-        "height":         "50px",
-        "display":        "flex",
-        "alignItems":     "center",
-        "justifyContent": "center",
-    }
-
 
 # ---------------------------------------------------------------------------
 # Core translation: PipelineGraph → UI
@@ -265,7 +249,7 @@ def vertex_to_node(
     label = vertex.metadata.get("label", vertex.vertex_id[:8])
     return {
         "id":   vertex.vertex_id,
-        "type": "default",
+        "type": "vertex",
         "data": {
             "label":                label,
             "status":               ui_status,
@@ -275,7 +259,7 @@ def vertex_to_node(
         },
         "position":  position or {"x": 0, "y": 0},
         "draggable": True,
-        "style":     _node_style(ui_status),
+        "style":     {"width": "150px", "height": "50px"},
     }
 
 
