@@ -30,7 +30,12 @@
       "Bash(python -c \"from reflex_components_core.base import fragment; print\\(type\\(fragment\\)\\); print\\(fragment\\)\")",
       "Bash(python -c \"import reflex_components_core.base as b; print\\(dir\\(b\\)\\)\")",
       "Bash(python -c \"import reflex_components_core.base; import inspect; print\\(inspect.getfile\\(reflex_components_core.base\\)\\)\")",
-      "Bash(python -c \"from reflex_components_core.base.fragment import fragment; print\\(type\\(fragment\\), fragment\\)\")"
+      "Bash(python -c \"from reflex_components_core.base.fragment import fragment; print\\(type\\(fragment\\), fragment\\)\")",
+      "Bash(python -c \"import reflex; import inspect; import reflex.components.lucide; print\\(inspect.getfile\\(reflex.components.lucide\\)\\)\")",
+      "Bash(python -c \"import reflex as rx; import inspect; src = inspect.getsource\\(rx.icon\\); print\\(src[:800]\\)\")",
+      "Bash(python -c \"import reflex as rx; import inspect; src = inspect.getsource\\(rx.icon\\); print\\(src[800:1800]\\)\")",
+      "Bash(python -c \"import reflex as rx; import inspect; src = inspect.getsource\\(rx.icon\\); print\\(src[1800:]\\)\")",
+      "Bash(python -c ' *)"
     ]
   }
 }
