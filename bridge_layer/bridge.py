@@ -269,7 +269,7 @@ def graph_edge_to_edge(graph_edge: GraphEdge) -> Dict[str, Any]:
         "id":       graph_edge.edge_id,
         "source":   graph_edge.from_vertex_id,
         "target":   graph_edge.to_vertex_id,
-        "label":    graph_edge.transformation_class or "",
+        "label":    "",
         "animated": False,
     }
 
