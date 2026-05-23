@@ -74,6 +74,29 @@ def list_projects(user_id: str) -> list:
     return sorted(p.stem for p in user_dir.glob("*.yaml"))
 
 
+def rename_project(old_session_id: str, new_session_id: str) -> bool:
+    """
+    Rename a project: move the YAML file on disk and re-key the in-memory store.
+
+    Returns True on success, False when the target name is already taken or an
+    OS error prevents the rename.
+    """
+    old_path = _session_to_path(old_session_id)
+    new_path = _session_to_path(new_session_id)
+    if new_path.exists():
+        return False  # name already taken
+    try:
+        if old_path.exists():
+            new_path.parent.mkdir(parents=True, exist_ok=True)
+            old_path.rename(new_path)
+        pipeline = _store.pop(old_session_id, None)
+        if pipeline is not None:
+            _store[new_session_id] = pipeline
+        return True
+    except Exception:
+        return False
+
+
 def delete(session_id: str) -> None:
     _store.pop(session_id, None)
 

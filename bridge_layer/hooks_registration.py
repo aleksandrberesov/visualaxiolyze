@@ -683,6 +683,149 @@ def _list_projects(user_id: str) -> List[str]:
     return registry.list_projects(user_id)
 
 
+# ---------------------------------------------------------------------------
+# Phase 1 — Rename project
+# ---------------------------------------------------------------------------
+
+def _rename_project(old_session_id: str, new_session_id: str) -> bool:
+    """Move the YAML file on disk and re-key the in-memory store."""
+    return registry.rename_project(old_session_id, new_session_id)
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 — Export project as YAML
+# ---------------------------------------------------------------------------
+
+def _export_project_yaml(
+    session_id: str,
+    ui_nodes: List[Dict[str, Any]],
+    ui_edges: List[Dict[str, Any]],
+    project_name: str,
+    mode: str = "structure_only",
+) -> str:
+    """
+    Serialize the full project (pipeline + UI layout + optional dataset) to a
+    YAML string ready for rx.download().
+
+    mode:
+      "structure_only" — pipeline + schemas, no embedded data
+      "full"           — + dataset as inline CSV text
+      "full_parquet"   — + dataset as base64-encoded Parquet bytes
+    """
+    import io
+    import yaml
+    from datetime import datetime, timezone
+
+    pipeline = registry.get(session_id)
+    pipeline_dict = pipeline.to_dict() if pipeline is not None else {}
+
+    doc: Dict[str, Any] = {
+        "version": "1",
+        "project_name": project_name,
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "export_mode": mode,
+        "pipeline": pipeline_dict,
+        "ui_layout": {
+            "nodes": ui_nodes,
+            "edges": ui_edges,
+        },
+    }
+
+    if mode in ("full", "full_parquet") and pipeline is not None:
+        df = pipeline.get_data()
+        if df is not None:
+            if mode == "full":
+                doc["dataset"] = {
+                    "format": "csv",
+                    "data": df.to_csv(index=False),
+                }
+            else:  # full_parquet
+                import base64
+                buf = io.BytesIO()
+                df.to_parquet(buf, index=False)
+                doc["dataset"] = {
+                    "format": "parquet_b64",
+                    "data": base64.b64encode(buf.getvalue()).decode(),
+                }
+
+    return yaml.dump(doc, allow_unicode=True, default_flow_style=False, sort_keys=False)
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — Import project from YAML
+# ---------------------------------------------------------------------------
+
+def _import_project_yaml(
+    session_id: str,
+    yaml_bytes: bytes,
+) -> Optional[Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]]:
+    """
+    Parse a project YAML, reconstruct the PipelineGraph, optionally restore
+    data, register in the registry, and return (project_name, nodes, edges).
+
+    Returns None when the YAML is unreadable or PipelineGraph reconstruction
+    fails.  Data-decode errors are swallowed — the pipeline is still returned
+    without data so the structure is always preserved.
+    """
+    import yaml as _yaml
+
+    try:
+        doc = _yaml.safe_load(yaml_bytes)
+    except Exception:
+        return None
+
+    if not isinstance(doc, dict):
+        return None
+
+    project_name: str = doc.get("project_name", "imported-project")
+    mode: str = doc.get("export_mode", "structure_only")
+
+    # Reconstruct pipeline backend
+    pipeline_dict = doc.get("pipeline", {})
+    try:
+        from axiolyze.core.graph import PipelineGraph
+        pipeline = PipelineGraph.from_dict(pipeline_dict)
+    except Exception:
+        return None
+
+    # Restore data
+    if mode in ("full", "full_parquet") and "dataset" in doc:
+        try:
+            import base64
+            import io
+            import pandas as pd
+            ds = doc["dataset"]
+            fmt = ds.get("format", "csv")
+            if fmt == "csv":
+                df = pd.read_csv(io.StringIO(ds["data"]))
+            else:  # parquet_b64
+                df = pd.read_parquet(io.BytesIO(base64.b64decode(ds["data"])))
+            pipeline.set_data(df, source_reference={"type": "embedded"})
+        except Exception:
+            pass  # structure still importable even if data decode fails
+    else:
+        # structure_only: try to re-attach from the original file path
+        try:
+            pipeline.restore_data(force=True)
+        except Exception:
+            pass
+
+    # Register under the correct user session
+    user_id = session_id.split("::", 1)[0]
+    target_session = f"{user_id}::{project_name}"
+    registry.set(target_session, pipeline)  # also persists to disk
+
+    # Reconstruct UI nodes/edges
+    ui = doc.get("ui_layout", {})
+    nodes: List[Dict[str, Any]] = ui.get("nodes", [])
+    edges: List[Dict[str, Any]] = ui.get("edges", [])
+    if not nodes and pipeline_dict:
+        # Fallback for exports that omit ui_layout: derive from pipeline
+        nodes, edges = _pipeline_to_ui(pipeline)
+
+    return project_name, nodes, edges
+
+
 def _save_yaml(session_id: str, path: str) -> None:
     pipeline = registry.get(session_id)
     if pipeline is not None:
@@ -740,3 +883,6 @@ def register() -> None:
     pipeline_hooks.update_schema = _update_schema
     pipeline_hooks.update_transformation_config = _update_transformation_config
     pipeline_hooks.get_data_preview = _get_data_preview
+    pipeline_hooks.rename_project = _rename_project
+    pipeline_hooks.export_project_yaml = _export_project_yaml
+    pipeline_hooks.import_project_yaml = _import_project_yaml
