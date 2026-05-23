@@ -713,11 +713,22 @@ def _export_project_yaml(
       "full_parquet"   — + dataset as base64-encoded Parquet bytes
     """
     import io
+    import json
     import yaml
     from datetime import datetime, timezone
 
     pipeline = registry.get(session_id)
     pipeline_dict = pipeline.to_dict() if pipeline is not None else {}
+
+    # Strip Reflex proxy wrappers (reflex.istate.proxy._unwrap_for_pickle) so
+    # that yaml.dump produces plain YAML instead of !!python/object/apply tags,
+    # which yaml.safe_load on import would reject.
+    try:
+        plain_nodes: list = json.loads(json.dumps(list(ui_nodes)))
+        plain_edges: list = json.loads(json.dumps(list(ui_edges)))
+    except Exception:
+        plain_nodes = list(ui_nodes)
+        plain_edges = list(ui_edges)
 
     doc: Dict[str, Any] = {
         "version": "1",
@@ -726,8 +737,8 @@ def _export_project_yaml(
         "export_mode": mode,
         "pipeline": pipeline_dict,
         "ui_layout": {
-            "nodes": ui_nodes,
-            "edges": ui_edges,
+            "nodes": plain_nodes,
+            "edges": plain_edges,
         },
     }
 
@@ -758,26 +769,71 @@ def _export_project_yaml(
 def _import_project_yaml(
     session_id: str,
     yaml_bytes: bytes,
+    name_override: Optional[str] = None,
 ) -> Optional[Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]]:
     """
     Parse a project YAML, reconstruct the PipelineGraph, optionally restore
     data, register in the registry, and return (project_name, nodes, edges).
 
+    name_override — when provided, use this name instead of the one stored in
+    the YAML (used when the user resolves a name conflict via the rename dialog).
+
     Returns None when the YAML is unreadable or PipelineGraph reconstruction
     fails.  Data-decode errors are swallowed — the pipeline is still returned
     without data so the structure is always preserved.
     """
+    import json
     import yaml as _yaml
 
+    # Build a loader that handles old exports which contain
+    # !!python/object/apply:reflex.istate.proxy._unwrap_for_pickle tags.
+    # Instead of calling the Python function we just return the inner list,
+    # which is exactly what _unwrap_for_pickle does at runtime.
+    class _LenientLoader(_yaml.SafeLoader):
+        pass
+
+    def _python_apply_constructor(
+        loader: _yaml.SafeLoader,
+        suffix: str,
+        node: _yaml.Node,
+    ) -> list:
+        args = loader.construct_sequence(node, deep=True)
+        # The tag wraps a single-element sequence whose element is the real list
+        if args and isinstance(args[0], list):
+            return args[0]
+        return args
+
+    _LenientLoader.add_multi_constructor(
+        "tag:yaml.org,2002:python/object/apply:",
+        _python_apply_constructor,
+    )
+
     try:
-        doc = _yaml.safe_load(yaml_bytes)
+        doc = _yaml.load(yaml_bytes, Loader=_LenientLoader)  # noqa: S506
     except Exception:
         return None
 
     if not isinstance(doc, dict):
         return None
 
-    project_name: str = doc.get("project_name", "imported-project")
+    # Normalize ui_layout lists to plain JSON-serialisable structures so that
+    # Reflex state vars can accept them without proxy wrapper issues.
+    ui = doc.get("ui_layout", {})
+    for key in ("nodes", "edges"):
+        val = ui.get(key, [])
+        if not isinstance(val, list):
+            try:
+                val = list(val)
+            except Exception:
+                val = []
+        try:
+            val = json.loads(json.dumps(val))
+        except Exception:
+            pass
+        ui[key] = val
+    doc["ui_layout"] = ui
+
+    project_name: str = name_override or doc.get("project_name", "imported-project")
     mode: str = doc.get("export_mode", "structure_only")
 
     # Reconstruct pipeline backend
