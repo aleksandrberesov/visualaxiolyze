@@ -905,6 +905,29 @@ def _load_yaml(
         return None
 
 
+def _delete_vertex(
+    session_id: str,
+    vertex_id: str,
+) -> Optional[Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]]:
+    """
+    Soft-delete a vertex and cascade to its descendants, then prune orphans.
+
+    Returns fresh (nodes, edges) for ReactFlow, or None when:
+    - no pipeline is attached to the session, or
+    - the caller tried to delete the root vertex (silently refused).
+    """
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return None
+    if vertex_id == pipeline.root_vertex_id:
+        # Root is the anchor of the whole graph — refuse silently.
+        return None
+    pipeline.mark_vertex_unavailable(vertex_id, cascade=True)
+    pipeline.prune_unreachable_vertices()
+    registry.persist(session_id)
+    return _pipeline_to_ui(pipeline)
+
+
 # ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
@@ -942,3 +965,4 @@ def register() -> None:
     pipeline_hooks.rename_project = _rename_project
     pipeline_hooks.export_project_yaml = _export_project_yaml
     pipeline_hooks.import_project_yaml = _import_project_yaml
+    pipeline_hooks.delete_vertex = _delete_vertex

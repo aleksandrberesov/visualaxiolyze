@@ -338,7 +338,12 @@ def pipeline_to_ui(
         for v in pipeline.vertices.values()
         if v.is_available
     ]
-    edges = [graph_edge_to_edge(e) for e in pipeline.edges.values()]
+    available_ids = {v.vertex_id for v in pipeline.vertices.values() if v.is_available}
+    edges = [
+        graph_edge_to_edge(e)
+        for e in pipeline.edges.values()
+        if e.from_vertex_id in available_ids and e.to_vertex_id in available_ids
+    ]
     return nodes, edges
 
 
