@@ -164,7 +164,7 @@ at non-root only by the same `dropna` bug fixed in Phase 2.
 
 ## Phase 1 — Node deletion: persist, cascade, prune orphans
 
-**Status:** [ ] not started
+**Status:** [x] done
 
 **Files:**
 - `deps/repo_glm/axiolyze/core/graph.py` — `mark_vertex_unavailable` (1365-1386,
@@ -216,7 +216,7 @@ the customer complains about file growth.)
 
 ## Phase 2 — View data + analytics at any vertex (fix `dropna`)
 
-**Status:** [ ] not started
+**Status:** [x] done
 
 **Files:**
 - `deps/repo_glm/axiolyze/core/graph.py` — `get_data_for_vertex` (731-782), the

@@ -511,14 +511,13 @@ def _get_data_preview(
     if pipeline is None:
         return None
     try:
-        # For the root vertex, get the raw dataframe directly.
-        # get_data_for_vertex would call dropna() across all columns, which
-        # can silently discard most rows or return None if the vertex state
-        # isn't fully initialised yet.
-        if vertex_id == pipeline.root_vertex_id:
-            df = pipeline.get_data()
-        else:
-            df = pipeline.get_data_for_vertex(vertex_id)
+        # get_data_for_vertex with dropna=False (the default) preserves all rows,
+        # including those with NaN in some columns.  This works correctly at any
+        # vertex — root and non-root alike — because each analytics function
+        # handles NaNs per-column internally.  The previous root special-case
+        # (calling pipeline.get_data() directly) was only needed to avoid the
+        # old global dropna(); it is no longer required.
+        df = pipeline.get_data_for_vertex(vertex_id)
         if df is None or df.empty:
             return None
         total_rows = len(df)
