@@ -250,7 +250,7 @@ the customer complains about file growth.)
 
 ## Phase 3a — Node 0 base schema + constructor popup
 
-**Status:** [ ] not started
+**Status:** [x] done
 
 **Goal:** Implement the scenario's Node 0 base schema: the load-time
 "schema exists? → auto-apply : load-file-or-construct" flow, plus a constructor

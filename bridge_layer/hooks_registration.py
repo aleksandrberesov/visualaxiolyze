@@ -152,6 +152,10 @@ def _attach_data(
             pipeline.vertices[root_id].manifest(pipeline, data_source=df)
         except Exception:
             pass
+        # Stamp whether the base schema still needs user configuration.
+        # True when no pre-built schema was supplied (user needs the constructor).
+        # False when a schema file was loaded (roles are already defined).
+        pipeline.vertices[root_id].metadata["needs_base_schema"] = not bool(schema_path)
 
     if root_id is None:
         return None
@@ -904,6 +908,88 @@ def _load_yaml(
         return None
 
 
+def _get_base_schema(session_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Return the full base-schema info needed to prefill the schema constructor.
+
+    Returns a dict with:
+      all_columns : List[str]  — every column in the dataset
+      targets     : List[str]  — current target_columns pool
+      exposures   : List[str]  — current exposure_columns pool
+      indexes     : List[str]  — current index_columns
+      force_drop  : List[str]  — currently excluded_columns
+    """
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return None
+    df = pipeline.get_data()
+    if df is None:
+        return None
+    all_columns = df.columns.tolist()
+    schema = None
+    root_id = pipeline.root_vertex_id
+    if root_id and root_id in pipeline.vertices:
+        schema = _get_vertex_schema(pipeline.vertices[root_id])
+    root_vertex = pipeline.vertices.get(root_id) if root_id else None
+    needs_base_schema = bool(
+        root_vertex and root_vertex.metadata.get("needs_base_schema", False)
+    ) if root_vertex else False
+
+    if schema is None:
+        return {
+            "all_columns": all_columns,
+            "targets": [], "exposures": [], "indexes": [], "force_drop": [],
+            "needs_base_schema": needs_base_schema,
+        }
+    return {
+        "all_columns": all_columns,
+        "targets":    list(getattr(schema, "target_columns", []) or []),
+        "exposures":  list(getattr(schema, "exposure_columns", []) or []),
+        "indexes":    list(getattr(schema, "index_columns", []) or []),
+        "force_drop": list(getattr(schema, "excluded_columns", []) or []),
+        "needs_base_schema": needs_base_schema,
+    }
+
+
+def _build_base_schema(session_id: str, base_dict: Dict[str, Any]) -> None:
+    """
+    Rebuild the root vertex schema from a constructor dict and persist.
+
+    base_dict keys (all optional, default to []):
+      targets, exposures, indexes, force_drop,
+      force_numeric, force_datetime, force_categorical
+    """
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return
+    root_id = pipeline.root_vertex_id
+    if not root_id or root_id not in pipeline.vertices:
+        return
+    df = pipeline.get_data()
+    if df is None:
+        return
+    from axiolyze.core.schema import DataSchema
+    schema = DataSchema.from_dataframe(
+        df,
+        target=base_dict.get("targets", []),
+        index=base_dict.get("indexes", []),
+        exposure_list=base_dict.get("exposures", []),
+        force_categorical=base_dict.get("force_categorical", []),
+        force_numeric=base_dict.get("force_numeric", []),
+        force_datetime=base_dict.get("force_datetime", []),
+        trash_columns=base_dict.get("force_drop", []),
+    )
+    vertex = pipeline.vertices[root_id]
+    vertex.metadata["schema"] = schema
+    # User has now configured the base schema — no longer needs the constructor.
+    vertex.metadata["needs_base_schema"] = False
+    try:
+        vertex.manifest(pipeline, data_source=df)
+    except Exception:
+        pass
+    registry.persist(session_id)
+
+
 def _delete_vertex(
     session_id: str,
     vertex_id: str,
@@ -965,3 +1051,5 @@ def register() -> None:
     pipeline_hooks.export_project_yaml = _export_project_yaml
     pipeline_hooks.import_project_yaml = _import_project_yaml
     pipeline_hooks.delete_vertex = _delete_vertex
+    pipeline_hooks.get_base_schema = _get_base_schema
+    pipeline_hooks.build_base_schema = _build_base_schema
