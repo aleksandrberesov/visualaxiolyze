@@ -294,7 +294,7 @@ popup that captures `targets`/`exposures`/`indexes` (pools) and
 
 ## Phase 3b — Tiny Schema node (per branch)
 
-**Status:** [ ] not started
+**Status:** [x] done
 
 **Goal:** Implement the scenario's Node 1 as a **dedicated node type** that begins
 each branch: pick one `Target` ∈ targets, one `Exposure` ∈ exposures, one

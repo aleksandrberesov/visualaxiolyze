@@ -201,13 +201,17 @@ def _add_transformation(
         _logging.error(f"[_add_transformation] Transformer class '{class_name}' not found")
         return None
 
-    # Auto-fill schema-derivable params from the root vertex's DataSchema.
-    # If a required param cannot be resolved, we still create the vertex so
-    # the UI can display the readable error rather than silently dropping it.
+    # Auto-fill schema-derivable params from the *parent* vertex's DataSchema
+    # (which already reflects any Tiny Schema narrowing upstream).  Fall back
+    # to the root schema when the parent's schema isn't available yet.
     schema = None
-    root_id = pipeline.root_vertex_id
-    if root_id and root_id in pipeline.vertices:
-        schema = _get_vertex_schema(pipeline.vertices[root_id])
+    parent_vertex = pipeline.vertices.get(parent_id)
+    if parent_vertex is not None:
+        schema = _get_vertex_schema(parent_vertex)
+    if schema is None:
+        root_id = pipeline.root_vertex_id
+        if root_id and root_id in pipeline.vertices:
+            schema = _get_vertex_schema(pipeline.vertices[root_id])
 
     autofill_error: Optional[str] = None
     try:
@@ -990,6 +994,62 @@ def _build_base_schema(session_id: str, base_dict: Dict[str, Any]) -> None:
     registry.persist(session_id)
 
 
+def _get_tiny_schema_pools(
+    session_id: str,
+    parent_vertex_id: str,
+) -> Optional[Dict[str, Any]]:
+    """
+    Return the column pools needed to populate the Tiny Schema dialog.
+
+    Keys returned:
+      targets   : List[str]  — target_columns from the root base schema
+      exposures : List[str]  — exposure_columns from the root base schema
+      indexes   : List[str]  — index_columns from the root base schema
+      features  : List[str]  — numeric + categorical columns visible at
+                               the *parent* vertex (the node the new Tiny
+                               Schema node will be attached to)
+    """
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return None
+
+    # Pools come from the root (Node 0) base schema
+    root_id = pipeline.root_vertex_id
+    if not root_id or root_id not in pipeline.vertices:
+        return None
+    root_schema = _get_vertex_schema(pipeline.vertices[root_id])
+    if root_schema is None:
+        return None
+
+    targets  = list(getattr(root_schema, "target_columns",   []) or [])
+    exposures = list(getattr(root_schema, "exposure_columns", []) or [])
+    indexes  = list(getattr(root_schema, "index_columns",    []) or [])
+
+    # Feature columns come from the parent vertex (may be the root itself or
+    # a previously added Tiny Schema node whose schema is already narrowed)
+    parent_vertex = pipeline.vertices.get(parent_vertex_id)
+    if (
+        parent_vertex is None
+        or not parent_vertex.is_manifested
+        or parent_vertex.state is None
+    ):
+        return None
+
+    visible = parent_vertex.state.get_visible_columns()
+    features = (
+        visible.get("numeric", []) +
+        visible.get("categorical", []) +
+        visible.get("ordered_categorical", [])
+    )
+
+    return {
+        "targets":   targets,
+        "exposures": exposures,
+        "indexes":   indexes,
+        "features":  features,
+    }
+
+
 def _delete_vertex(
     session_id: str,
     vertex_id: str,
@@ -1053,3 +1113,4 @@ def register() -> None:
     pipeline_hooks.delete_vertex = _delete_vertex
     pipeline_hooks.get_base_schema = _get_base_schema
     pipeline_hooks.build_base_schema = _build_base_schema
+    pipeline_hooks.get_tiny_schema_pools = _get_tiny_schema_pools
