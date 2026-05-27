@@ -35,7 +35,8 @@
       "Bash(python -c \"import reflex as rx; import inspect; src = inspect.getsource\\(rx.icon\\); print\\(src[:800]\\)\")",
       "Bash(python -c \"import reflex as rx; import inspect; src = inspect.getsource\\(rx.icon\\); print\\(src[800:1800]\\)\")",
       "Bash(python -c \"import reflex as rx; import inspect; src = inspect.getsource\\(rx.icon\\); print\\(src[1800:]\\)\")",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "PowerShell(& \"c:\\\\axiolyzeProject\\\\visualaxiolyze\\\\scripts\\\\build_and_save.ps1\" -OutputDir \"C:\\\\docker-images\")"
     ]
   }
 }

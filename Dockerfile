@@ -34,9 +34,14 @@ RUN pip install -e ./deps/repo_glm \
 COPY bridge_layer ./bridge_layer
 COPY config.toml run.py ./
 
+# Build number is passed in by build_and_save.ps1 so the app can display it.
+# It must be an ENV (not just ARG) so it is visible when `reflex export` runs
+# and top_menu.py is imported during the frontend compilation step.
+ARG BUILD_NUMBER=0
 ENV PYTHONPATH=/app:/app/deps/repo_vdag \
     GRAPHVISION_PIPELINE_HOOKS=bridge_layer.hooks_registration \
-    REFLEX_ENV=prod
+    REFLEX_ENV=prod \
+    APP_BUILD_NUMBER=$BUILD_NUMBER
 
 RUN cd /app/deps/repo_vdag && python -m reflex init --template blank || true \
  && cd /app/deps/repo_vdag && python -m reflex export --frontend-only --no-zip || true
