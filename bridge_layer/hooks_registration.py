@@ -1090,6 +1090,52 @@ def _delete_vertex(
     return _pipeline_to_ui(pipeline)
 
 
+def _get_model_results(
+    session_id: str,
+    vertex_id: str,
+) -> Optional[Dict[str, Any]]:
+    """
+    Return model analytics for a fitted model vertex.
+
+    Returns a dict with keys:
+      summary       — fit statistics (AIC, BIC, deviance, pseudo-R², …)
+      coefficients  — list of {name, coef, std_err, z_stat, p_value}
+      actual_vs_predicted — list of {actual, predicted} (sampled ≤500)
+      residuals     — list of {predicted, residual}
+      lift_curve    — list of {decile, avg_actual, avg_predicted, lift}
+      gini          — Gini coefficient (float)
+    Returns None when the session/vertex is missing.
+    Returns {"error": str} when the model has not been fitted yet.
+    """
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return None
+    vertex = pipeline.vertices.get(vertex_id)
+    if vertex is None or vertex.vertex_type != "model":
+        return None
+
+    estimator = vertex.transformation
+    if estimator is None or not getattr(estimator, "is_model", False):
+        return {"error": "Model estimator not found on this vertex."}
+    if not getattr(estimator, "fitted_", False):
+        fit_summary = vertex.metadata.get("fit_summary")
+        if fit_summary:
+            # Session was restored from YAML — the object was re-fitted during
+            # restore, so try again.
+            pass
+        return {"error": "Model is not fitted yet. Manifest the node first."}
+
+    summary = estimator.get_fit_summary()
+    coefficients = estimator.get_coefficients()
+    chart_data = estimator.get_chart_data()
+
+    return {
+        "summary":      summary,
+        "coefficients": coefficients,
+        **chart_data,
+    }
+
+
 def _add_model_node(
     session_id: str,
     parent_id: str,
@@ -1165,3 +1211,4 @@ def register() -> None:
     pipeline_hooks.get_tiny_schema_pools = _get_tiny_schema_pools
     pipeline_hooks.describe_glm_families = describe_glm_families
     pipeline_hooks.add_model_node = _add_model_node
+    pipeline_hooks.get_model_results = _get_model_results

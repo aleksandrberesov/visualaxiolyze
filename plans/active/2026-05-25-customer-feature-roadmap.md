@@ -420,7 +420,7 @@ branch terminal**: one model node ends each branch.
 
 ## Phase 6 — Model analytics + quality metrics (Req 4.2)
 
-**Status:** [ ] not started
+**Status:** [x] done
 
 **Goal:** A model node shows model diagnostics + quality metrics; data nodes keep
 the existing data-analytics tabs.
