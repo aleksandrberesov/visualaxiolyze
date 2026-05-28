@@ -339,7 +339,7 @@ scenario, and required for the multi-branch model.
 
 ## Phase 4 — Complete transformer config fields
 
-**Status:** [ ] not started
+**Status:** [x] done
 
 **Files:**
 - `bridge_layer/bridge.py` — `describe_transformer` (the source of `{"params":[...]}`

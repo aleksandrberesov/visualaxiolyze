@@ -248,6 +248,22 @@ def _get_vertex_columns(
     return _bridge_get_vertex_columns(pipeline, vertex_id)
 
 
+def _get_unique_column_values(
+    session_id: str, vertex_id: str, column: str
+) -> List[str]:
+    """Return sorted unique string values for a column at a vertex."""
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return []
+    try:
+        df = pipeline.get_data_for_vertex(vertex_id)
+        if df is None or column not in df.columns:
+            return []
+        return sorted(df[column].dropna().astype(str).unique().tolist())
+    except Exception:
+        return []
+
+
 def _distribution_from_df(df: Any, column: str) -> Optional[Dict[str, Any]]:
     """Compute a distribution result dict directly from a DataFrame column (no pipeline cache)."""
     import numpy as np
@@ -1094,6 +1110,7 @@ def register() -> None:
     pipeline_hooks.is_transformers_cached = is_transformers_cached
     pipeline_hooks.describe_transformer = describe_transformer
     pipeline_hooks.get_vertex_columns = _get_vertex_columns
+    pipeline_hooks.get_unique_column_values = _get_unique_column_values
     pipeline_hooks.compute_distribution = _compute_distribution
     pipeline_hooks.compute_correlation = _compute_correlation
     pipeline_hooks.restore_pipeline = _restore_pipeline

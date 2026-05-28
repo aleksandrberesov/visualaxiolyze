@@ -97,16 +97,25 @@ def describe_transformer(class_name: str) -> Optional[Dict[str, Any]]:
     Return the param schema for a transformer's __init__.
 
     Each entry in 'params' describes one constructor argument:
-      name        – parameter name
-      annotation  – type hint as a readable string ("List[str]", "bool", …)
-      required    – True when the param has no default
-      default     – the default value, or None when required
+      name          – parameter name
+      annotation    – type hint as a readable string ("List[str]", "bool", …)
+      required      – True when the param has no default
+      default       – the default value, or None when required
+      is_list       – True for List[str] params (rendered as column-badge picker)
+      is_bool       – True for bool params (rendered as true/false select)
+      is_enum       – True for str params with a fixed choices list (rendered as select)
+      is_dict       – True for Dict params (rendered as JSON textarea)
+      choices       – allowed values for is_enum params
+      list_choices  – fixed values for is_list params (badges show these instead of columns)
+      source        – "schema" if auto-filled from DataSchema, "user" otherwise
     """
     cls = get_transformer_class(class_name)
     if cls is None:
         return None
 
     sig = inspect.signature(cls.__init__)
+    param_metadata: Dict[str, Dict] = getattr(cls, "PARAM_METADATA", {})
+
     params = []
     for name, param in sig.parameters.items():
         if name == "self":
@@ -130,19 +139,35 @@ def describe_transformer(class_name: str) -> Optional[Dict[str, Any]]:
             ann_str = str(ann)
 
         has_default = param.default is not inspect.Parameter.empty
-        
+
         # SCHEMA_PARAMS from the class itself (self-describing backend)
-        param_map = getattr(cls, "SCHEMA_PARAMS", {})
-        source = "schema" if name in param_map else "user"
-        
+        schema_param_map = getattr(cls, "SCHEMA_PARAMS", {})
+        source = "schema" if name in schema_param_map else "user"
+
+        # Per-param metadata from PARAM_METADATA
+        meta = param_metadata.get(name, {})
+        choices: List[str] = meta.get("choices", [])
+        list_choices: List[str] = meta.get("list_choices", [])
+
+        is_list = ann_str.startswith("List") or ann_str.startswith("list")
+        is_bool = ann_str == "bool"
+        # Enum: single str value chosen from a fixed set (not a list param)
+        is_enum = bool(choices) and not is_list
+        # Dict: complex mapping type — auto-detected from annotation or explicit flag
+        is_dict = meta.get("is_dict", False) or "Dict[" in ann_str
+
         params.append({
-            "name":        name,
-            "annotation":  ann_str,
-            "required":    not has_default,
-            "default":     param.default if has_default else None,
-            "is_list":     ann_str.startswith("List") or ann_str.startswith("list"),
-            "is_bool":     ann_str == "bool",
-            "source":      source,
+            "name":         name,
+            "annotation":   ann_str,
+            "required":     not has_default,
+            "default":      param.default if has_default else None,
+            "is_list":      is_list,
+            "is_bool":      is_bool,
+            "is_enum":      is_enum,
+            "is_dict":      is_dict,
+            "choices":      choices,
+            "list_choices": list_choices,
+            "source":       source,
         })
 
     return {"class_name": class_name, "params": params}
