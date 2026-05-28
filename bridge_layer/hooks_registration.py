@@ -19,6 +19,7 @@ from bridge_layer.bridge import (
     available_transformers,
     is_transformers_cached,
     describe_transformer,
+    describe_glm_families,
     get_transformer_class,
     get_vertex_columns as _bridge_get_vertex_columns,
     pipeline_to_ui as _pipeline_to_ui,
@@ -1089,6 +1090,37 @@ def _delete_vertex(
     return _pipeline_to_ui(pipeline)
 
 
+def _add_model_node(
+    session_id: str,
+    parent_id: str,
+    family: str,
+    link: str,
+    ui_node_id: str,
+) -> Optional[str]:
+    """Create a model vertex (GLMModelEstimator) as a child of parent_id."""
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        _logging.error("[_add_model_node] Pipeline not found for session_id: %s", session_id)
+        return None
+    if not parent_id:
+        _logging.error("[_add_model_node] parent_id is empty")
+        return None
+
+    try:
+        vertex_id = pipeline.add_model_node(
+            from_vertex_id=parent_id,
+            family=family,
+            link=link,
+            new_vertex_id=ui_node_id,
+        )
+    except Exception as exc:
+        _logging.error("[_add_model_node] Failed: %s", exc, exc_info=True)
+        return None
+
+    registry.persist(session_id)
+    return vertex_id
+
+
 # ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
@@ -1131,3 +1163,5 @@ def register() -> None:
     pipeline_hooks.get_base_schema = _get_base_schema
     pipeline_hooks.build_base_schema = _build_base_schema
     pipeline_hooks.get_tiny_schema_pools = _get_tiny_schema_pools
+    pipeline_hooks.describe_glm_families = describe_glm_families
+    pipeline_hooks.add_model_node = _add_model_node

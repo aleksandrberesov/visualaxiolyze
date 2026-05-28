@@ -278,6 +278,7 @@ def vertex_to_node(
         "data": {
             "label":                label,
             "status":               ui_status,
+            "node_type":            vertex.vertex_type,
             "transformation_class":  vertex.metadata.get("transformation_class", ""),
             "transformation_config": vertex.transformation_config or {},
             "errors":               vertex.transformation_errors or [],
@@ -432,6 +433,19 @@ def add_transformation_from_node(
     if autofill_error:
         pipeline.vertices[vertex_id].transformation_errors = [autofill_error]
     return vertex_id
+
+
+# ---------------------------------------------------------------------------
+# GLM model families / links (used by the model config dialog)
+# ---------------------------------------------------------------------------
+
+def describe_glm_families() -> Dict[str, Any]:
+    """Return the GLM_FAMILY_LINK_MAP for the UI model-config dialog.
+
+    Shape: {family_name: {"canonical_link": str, "available_links": [str, ...]}, ...}
+    """
+    from axiolyze.models.glm_estimator import GLM_FAMILY_LINK_MAP
+    return dict(GLM_FAMILY_LINK_MAP)
 
 
 # ---------------------------------------------------------------------------

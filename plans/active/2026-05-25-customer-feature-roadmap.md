@@ -376,7 +376,7 @@ scenario, and required for the multi-branch model.
 
 ## Phase 5 — Model training node (GLM family + link)
 
-**Status:** [ ] not started
+**Status:** [x] done
 
 **Goal:** Add a model-training node that fits a real GLM with a user-chosen family
 and link (links constrained by family). Per the scenario this is **Node N — the
