@@ -1167,6 +1167,41 @@ def _add_model_node(
     return vertex_id
 
 
+def _export_pipeline(session_id: str, vertex_id: str) -> Optional[bytes]:
+    """
+    Build and serialize a fitted sklearn.pipeline.Pipeline for the branch
+    ending at vertex_id (must be a fitted model vertex).
+
+    Returns the joblib-serialized bytes on success, or None on failure.
+    """
+    import io
+    try:
+        import joblib
+    except ImportError:
+        _logging.error("[_export_pipeline] joblib is not installed")
+        return None
+
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        _logging.error("[_export_pipeline] No pipeline for session %s", session_id)
+        return None
+
+    try:
+        sk_pipeline = pipeline.build_branch_pipeline(vertex_id)
+    except Exception as exc:
+        _logging.error("[_export_pipeline] build_branch_pipeline failed: %s", exc, exc_info=True)
+        return None
+
+    buf = io.BytesIO()
+    try:
+        joblib.dump(sk_pipeline, buf)
+    except Exception as exc:
+        _logging.error("[_export_pipeline] joblib.dump failed: %s", exc, exc_info=True)
+        return None
+
+    return buf.getvalue()
+
+
 # ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
@@ -1212,3 +1247,4 @@ def register() -> None:
     pipeline_hooks.describe_glm_families = describe_glm_families
     pipeline_hooks.add_model_node = _add_model_node
     pipeline_hooks.get_model_results = _get_model_results
+    pipeline_hooks.export_pipeline = _export_pipeline

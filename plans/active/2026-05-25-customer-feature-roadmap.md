@@ -449,7 +449,7 @@ the existing data-analytics tabs.
 
 ## Phase 7 — Per-branch sklearn Pipeline export
 
-**Status:** [ ] not started
+**Status:** [x] done
 
 **Goal:** Per the scenario, export a real `sklearn.pipeline.Pipeline` for a
 **branch** — the full path Node 0 → Node N: the Tiny Schema column selection
