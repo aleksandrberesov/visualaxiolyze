@@ -32,6 +32,13 @@ def run(env: str = "dev") -> None:
         cmd += ["--frontend-port", str(cfg["frontend_port"])]
 
     proc_env = os.environ.copy()
+    _dotenv = _PROJECT_ROOT / ".env"
+    if _dotenv.exists():
+        for line in _dotenv.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, _, v = line.partition("=")
+                proc_env.setdefault(k.strip(), v.strip())
     extra_paths = [str(_PROJECT_ROOT), str(_APP_DIR)]
     existing_pythonpath = proc_env.get("PYTHONPATH", "")
     proc_env["PYTHONPATH"] = os.pathsep.join(
