@@ -17,12 +17,15 @@ if (-not $Tag) {
     }
 }
 
-# Compute build number from the repo_vdag submodule commit count (runs on
-# the host where git works; the container cannot reach the parent .git tree).
-$repoVdag = Join-Path $PSScriptRoot "..\deps\repo_vdag"
-$BuildNumber = git -C $repoVdag rev-list --count HEAD 2>$null
-if (-not $BuildNumber) { $BuildNumber = "0" }
-$BuildNumber = $BuildNumber.Trim()
+# Compute build number as the sum of commits across all project repos so any
+# commit to any repo (main, repo_vdag, repo_glm) increments the number.
+$Root = Resolve-Path (Join-Path $PSScriptRoot "..")
+function _CountCommits([string]$p) {
+    $n = git -C $p rev-list --count HEAD 2>$null
+    if ($LASTEXITCODE -ne 0 -or -not $n) { return 0 }
+    return [int]$n.Trim()
+}
+$BuildNumber = (_CountCommits $Root) + (_CountCommits (Join-Path $Root "deps\repo_vdag")) + (_CountCommits (Join-Path $Root "deps\repo_glm"))
 Write-Host "Build number: $BuildNumber" -ForegroundColor DarkGray
 
 # Append build number to tag so the image is uniquely identified
