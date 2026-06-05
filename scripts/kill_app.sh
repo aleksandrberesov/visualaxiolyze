@@ -16,4 +16,13 @@ if [ -n "$REFLEX_PIDS" ]; then
     kill -9 $REFLEX_PIDS
 fi
 
+# Kill any remaining processes holding app ports (covers multiprocessing forks)
+for PORT in 3000 8000 8080 8765; do
+    PORT_PIDS=$(lsof -ti TCP:$PORT -sTCP:LISTEN 2>/dev/null)
+    if [ -n "$PORT_PIDS" ]; then
+        echo "Killing processes on port $PORT: $PORT_PIDS"
+        kill -9 $PORT_PIDS
+    fi
+done
+
 echo "Done."
