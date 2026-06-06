@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11-slim AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -7,12 +7,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     NODE_VERSION=20.x
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
         curl \
         ca-certificates \
+        git \
+        unzip \
     && curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION} | bash - \
     && apt-get install -y --no-install-recommends nodejs \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/cache/apt/*
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -32,6 +34,9 @@ RUN pip install -e ./deps/repo_glm \
 COPY bridge_layer ./bridge_layer
 COPY config.toml run.py ./
 
+# Build number is passed in by build_and_save.ps1 so the app can display it.
+# It must be an ENV (not just ARG) so it is visible when `reflex export` runs
+# and top_menu.py is imported during the frontend compilation step.
 ARG BUILD_NUMBER=0
 ENV PYTHONPATH=/app:/app/deps/repo_vdag \
     GRAPHVISION_PIPELINE_HOOKS=bridge_layer.hooks_registration \
@@ -39,9 +44,7 @@ ENV PYTHONPATH=/app:/app/deps/repo_vdag \
     APP_BUILD_NUMBER=$BUILD_NUMBER
 
 RUN cd /app/deps/repo_vdag && python -m reflex init --template blank || true \
- && cd /app/deps/repo_vdag && python -m reflex export --frontend-only --no-zip || true \
- && find /app -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true \
- && find /app -type f -name '*.pyc' -delete || true
+ && cd /app/deps/repo_vdag && python -m reflex export --frontend-only --no-zip || true
 
 EXPOSE 3322 8000
 
