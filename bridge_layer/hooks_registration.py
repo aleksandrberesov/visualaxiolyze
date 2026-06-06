@@ -934,11 +934,12 @@ def _get_base_schema(session_id: str) -> Optional[Dict[str, Any]]:
     Return the full base-schema info needed to prefill the schema constructor.
 
     Returns a dict with:
-      all_columns : List[str]  — every column in the dataset
-      targets     : List[str]  — current target_columns pool
-      exposures   : List[str]  — current exposure_columns pool
-      indexes     : List[str]  — current index_columns
-      force_drop  : List[str]  — currently excluded_columns
+      all_columns    : List[str]  — every column in the dataset
+      targets        : List[str]  — current target_columns pool
+      exposures      : List[str]  — current exposure_columns pool
+      indexes        : List[str]  — current index_columns
+      force_drop     : List[str]  — currently excluded_columns
+      column_samples : Dict[str, List[str]]  — {col: [first_val, second_val]}
     """
     pipeline = registry.get(session_id)
     if pipeline is None:
@@ -956,19 +957,40 @@ def _get_base_schema(session_id: str) -> Optional[Dict[str, Any]]:
         root_vertex and root_vertex.metadata.get("needs_base_schema", False)
     ) if root_vertex else False
 
+    def _trunc(v: object, n: int = 30) -> str:
+        s = str(v)
+        return s if len(s) <= n else s[:n] + "…"
+
+    numeric_columns = df.select_dtypes(include=["number"]).columns.tolist()
+
+    column_samples: Dict[str, list] = {}
+    for col in all_columns:
+        non_null = df[col].dropna()
+        v0 = _trunc(non_null.iloc[0]) if len(non_null) > 0 else "—"
+        v1 = _trunc(non_null.iloc[1]) if len(non_null) > 1 else "—"
+        column_samples[col] = [v0, v1]
+
     if schema is None:
         return {
             "all_columns": all_columns,
-            "targets": [], "exposures": [], "indexes": [], "force_drop": [],
+            "numeric_columns": numeric_columns,
+            "targets": [], "exposures": [], "indexes": [],
+            "force_drop": [], "force_numeric": [], "force_datetime": [], "force_categorical": [],
             "needs_base_schema": needs_base_schema,
+            "column_samples": column_samples,
         }
     return {
         "all_columns": all_columns,
-        "targets":    list(getattr(schema, "target_columns", []) or []),
-        "exposures":  list(getattr(schema, "exposure_columns", []) or []),
-        "indexes":    list(getattr(schema, "index_columns", []) or []),
-        "force_drop": list(getattr(schema, "excluded_columns", []) or []),
+        "numeric_columns": numeric_columns,
+        "targets":           list(getattr(schema, "target_columns", []) or []),
+        "exposures":         list(getattr(schema, "exposure_columns", []) or []),
+        "indexes":           list(getattr(schema, "index_columns", []) or []),
+        "force_drop":        list(getattr(schema, "excluded_columns", []) or []),
+        "force_numeric":     [],
+        "force_datetime":    [],
+        "force_categorical": [],
         "needs_base_schema": needs_base_schema,
+        "column_samples": column_samples,
     }
 
 

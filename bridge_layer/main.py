@@ -39,7 +39,8 @@ def run(env: str = "dev") -> None:
             if line and not line.startswith("#") and "=" in line:
                 k, _, v = line.partition("=")
                 proc_env.setdefault(k.strip(), v.strip())
-    extra_paths = [str(_PROJECT_ROOT), str(_APP_DIR)]
+    _glm_dir = _PROJECT_ROOT / "deps" / "repo_glm"
+    extra_paths = [str(_PROJECT_ROOT), str(_APP_DIR), str(_glm_dir)]
     existing_pythonpath = proc_env.get("PYTHONPATH", "")
     proc_env["PYTHONPATH"] = os.pathsep.join(
         extra_paths + ([existing_pythonpath] if existing_pythonpath else [])
