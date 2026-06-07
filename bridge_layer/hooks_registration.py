@@ -696,6 +696,8 @@ def _restore_pipeline(
         if pipeline is None:
             return None
         registry._store[session_id] = pipeline  # store without re-persisting
+    # Recreate synthetic exposure / index columns dropped by restore_data().
+    _ensure_service_columns(pipeline)
     return _pipeline_to_ui(pipeline)
 
 
@@ -890,6 +892,9 @@ def _import_project_yaml(
         except Exception:
             pass
 
+    # Recreate synthetic exposure / index columns dropped by restore_data().
+    _ensure_service_columns(pipeline)
+
     # Register under the correct user session
     user_id = session_id.split("::", 1)[0]
     target_session = f"{user_id}::{project_name}"
@@ -923,6 +928,7 @@ def _load_yaml(
     try:
         pipeline = PipelineGraph.load_from_yaml(path)
         pipeline.restore_data(force=True)  # reattach DataFrame; no-op if source file is gone
+        _ensure_service_columns(pipeline)
         registry.set(session_id, pipeline)
         return _pipeline_to_ui(pipeline)
     except Exception:
@@ -941,6 +947,8 @@ def _get_base_schema(session_id: str) -> Optional[Dict[str, Any]]:
       force_drop     : List[str]  — currently excluded_columns
       column_samples : Dict[str, List[str]]  — {col: [first_val, second_val]}
     """
+    from axiolyze.core.schema import DEFAULT_EXPOSURE_NAME, DEFAULT_INDEX_NAME
+
     pipeline = registry.get(session_id)
     if pipeline is None:
         return None
@@ -978,6 +986,8 @@ def _get_base_schema(session_id: str) -> Optional[Dict[str, Any]]:
             "force_drop": [], "force_numeric": [], "force_datetime": [], "force_categorical": [],
             "needs_base_schema": needs_base_schema,
             "column_samples": column_samples,
+            "reserve_exposure_name": DEFAULT_EXPOSURE_NAME,
+            "reserve_index_name": DEFAULT_INDEX_NAME,
         }
     return {
         "all_columns": all_columns,
@@ -991,7 +1001,54 @@ def _get_base_schema(session_id: str) -> Optional[Dict[str, Any]]:
         "force_categorical": [],
         "needs_base_schema": needs_base_schema,
         "column_samples": column_samples,
+        "reserve_exposure_name": DEFAULT_EXPOSURE_NAME,
+        "reserve_index_name": DEFAULT_INDEX_NAME,
     }
+
+
+def _ensure_service_columns(pipeline) -> bool:
+    """Materialise schema-declared exposure / index columns missing from the data.
+
+    Backs the "Create new" buttons: a missing exposure becomes a constant ``1.0``
+    column, a missing index becomes a ``0..N-1`` range. Keyed off the *root schema*
+    (not hardcoded names) so it stays correct across reloads — restore_data()
+    re-reads the original file without the synthetic columns, so this is re-run on
+    every restore path to recreate them.
+
+    Returns True when at least one column was created.
+    """
+    if pipeline is None:
+        return False
+    df = pipeline.get_data()
+    if df is None:
+        return False
+    root_id = pipeline.root_vertex_id
+    if not root_id or root_id not in pipeline.vertices:
+        return False
+    schema = _get_vertex_schema(pipeline.vertices[root_id])
+    if schema is None:
+        return False
+
+    import numpy as np
+
+    exposures = list(getattr(schema, "exposure_columns", []) or [])
+    if getattr(schema, "exposure_column", None):
+        exposures.append(schema.exposure_column)
+    indexes = list(getattr(schema, "index_columns", []) or [])
+
+    created = False
+    for name in exposures:
+        if name and name not in df.columns:
+            df[name] = 1.0
+            created = True
+    for name in indexes:
+        if name and name not in df.columns:
+            df[name] = np.arange(len(df))
+            created = True
+    if created:
+        # source_reference left unchanged (set_data only overwrites it when truthy).
+        pipeline.set_data(df)
+    return created
 
 
 def _build_base_schema(session_id: str, base_dict: Dict[str, Any]) -> None:
@@ -1001,6 +1058,9 @@ def _build_base_schema(session_id: str, base_dict: Dict[str, Any]) -> None:
     base_dict keys (all optional, default to []):
       targets, exposures, indexes, force_drop,
       force_numeric, force_datetime, force_categorical
+
+    Exposure / index names that are not present in the dataset are synthesised
+    by _ensure_service_columns (constant 1.0 for exposure, 0..N-1 for index).
     """
     pipeline = registry.get(session_id)
     if pipeline is None:
@@ -1026,6 +1086,9 @@ def _build_base_schema(session_id: str, base_dict: Dict[str, Any]) -> None:
     vertex.metadata["schema"] = schema
     # User has now configured the base schema — no longer needs the constructor.
     vertex.metadata["needs_base_schema"] = False
+    # Create any requested-but-missing exposure / index columns before manifesting.
+    _ensure_service_columns(pipeline)
+    df = pipeline.get_data()
     try:
         vertex.manifest(pipeline, data_source=df)
     except Exception:
@@ -1048,6 +1111,8 @@ def _get_tiny_schema_pools(
                                the *parent* vertex (the node the new Tiny
                                Schema node will be attached to)
     """
+    from axiolyze.core.schema import DEFAULT_EXPOSURE_NAME, DEFAULT_INDEX_NAME
+
     pipeline = registry.get(session_id)
     if pipeline is None:
         return None
@@ -1086,6 +1151,8 @@ def _get_tiny_schema_pools(
         "exposures": exposures,
         "indexes":   indexes,
         "features":  features,
+        "reserve_exposure_name": DEFAULT_EXPOSURE_NAME,
+        "reserve_index_name": DEFAULT_INDEX_NAME,
     }
 
 
