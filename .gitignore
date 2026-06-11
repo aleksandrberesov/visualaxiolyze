@@ -1,4 +1,5 @@
 assets/external/
+data/flyrail_data/
 .claude/worktrees/
 *.claude/worktrees/
 .web
