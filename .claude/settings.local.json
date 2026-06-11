@@ -20,7 +20,13 @@
       "Bash(git -C /Users/tatianaberesova/ViAx/visualaxiolyze/deps/repo_vdag diff HEAD --stat)",
       "Bash(git -C /Users/tatianaberesova/ViAx/visualaxiolyze/deps/repo_vdag diff HEAD)",
       "Bash(python3 -c ' *)",
-      "Bash(xargs grep -l \"train\\\\|Training\\\\|model\\\\|export\")"
+      "Bash(xargs grep -l \"train\\\\|Training\\\\|model\\\\|export\")",
+      "Bash(ls .dev/Scripts/python.exe)",
+      "Bash(ls .venv/Scripts/python.exe)",
+      "Bash(../../.dev/Scripts/python.exe -m pytest tests/test_get_data_for_vertex.py -v)",
+      "Bash(git --no-pager diff -- axiolyze/core/graph.py)",
+      "Bash(.dev/Scripts/python.exe _verify_preview.py)",
+      "Bash(echo \"EXIT=$?\")"
     ]
   }
 }
