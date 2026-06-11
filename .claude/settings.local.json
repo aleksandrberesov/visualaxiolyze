@@ -26,7 +26,8 @@
       "Bash(../../.dev/Scripts/python.exe -m pytest tests/test_get_data_for_vertex.py -v)",
       "Bash(git --no-pager diff -- axiolyze/core/graph.py)",
       "Bash(.dev/Scripts/python.exe _verify_preview.py)",
-      "Bash(echo \"EXIT=$?\")"
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(gh auth *)"
     ]
   }
 }
