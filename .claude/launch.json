@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "graphvision",
+      "runtimeExecutable": ".dev/Scripts/python.exe",
+      "runtimeArgs": ["bridge_layer/main.py"],
+      "port": 3322,
+      "autoPort": false
+    }
+  ]
+}

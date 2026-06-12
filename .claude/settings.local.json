@@ -30,7 +30,14 @@
       "Bash(gh auth *)",
       "Bash(echo \"=== reflex version ===\")",
       "Bash(/e/axiolyzeProject/visualaxiolyze/.dev/Scripts/python.exe -c 'import reflex; print\\(reflex.__version__\\)')",
-      "Bash(/e/axiolyzeProject/visualaxiolyze/.dev/Scripts/python.exe -c 'import importlib.metadata as m; print\\('\\\\''reflex'\\\\'', m.version\\('\\\\''reflex'\\\\''\\)\\)')"
+      "Bash(/e/axiolyzeProject/visualaxiolyze/.dev/Scripts/python.exe -c 'import importlib.metadata as m; print\\('\\\\''reflex'\\\\'', m.version\\('\\\\''reflex'\\\\''\\)\\)')",
+      "Bash(PYTHONPATH=\"deps/repo_vdag;deps/repo_glm;.\" .dev/Scripts/python.exe -c \"from GraphVision.components.math_builder_panel import math_builder_panel; math_builder_panel\\(\\); print\\('math_builder_panel OK'\\)\")",
+      "Skill(run)",
+      "Skill(run:*)",
+      "PowerShell(Get-Process python,pythonw,node -ErrorAction SilentlyContinue)",
+      "PowerShell(\"--- python/node processes ---\")",
+      "PowerShell(\"--- can we bind 8000? ---\")",
+      "mcp__Claude_Preview__preview_start"
     ]
   }
 }
