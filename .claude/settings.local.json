@@ -27,7 +27,10 @@
       "Bash(git --no-pager diff -- axiolyze/core/graph.py)",
       "Bash(.dev/Scripts/python.exe _verify_preview.py)",
       "Bash(echo \"EXIT=$?\")",
-      "Bash(gh auth *)"
+      "Bash(gh auth *)",
+      "Bash(echo \"=== reflex version ===\")",
+      "Bash(/e/axiolyzeProject/visualaxiolyze/.dev/Scripts/python.exe -c 'import reflex; print\\(reflex.__version__\\)')",
+      "Bash(/e/axiolyzeProject/visualaxiolyze/.dev/Scripts/python.exe -c 'import importlib.metadata as m; print\\('\\\\''reflex'\\\\'', m.version\\('\\\\''reflex'\\\\''\\)\\)')"
     ]
   }
 }
