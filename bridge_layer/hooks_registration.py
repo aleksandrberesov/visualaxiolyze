@@ -349,7 +349,7 @@ def _compute_correlation(
             if len(numeric_cols) < 2:
                 return None
             from axiolyze.core.statistics import compute_correlations, compute_matrix_stability
-            matrix = compute_correlations(df, numeric_cols)
+            matrix = compute_correlations(df, numeric_cols, method)
             if matrix is None:
                 return None
         else:
