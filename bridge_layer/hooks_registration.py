@@ -377,6 +377,44 @@ def _compute_correlation(
         return None
 
 
+def _compute_columns_stability(
+    session_id: str, vertex_id: str, columns: List[str],
+) -> Optional[Dict[str, Any]]:
+    """Correlation-matrix stability for a *subset* of numeric columns (the kept set).
+
+    Used by the Column Remover dialog to show how multicollinear the columns that
+    would reach the model are, so the user can decide what to drop.
+    """
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return None
+    try:
+        df = pipeline.get_data_for_vertex(vertex_id)
+        if df is None:
+            return None
+        cols_by_type = _bridge_get_vertex_columns(pipeline, vertex_id)
+        numeric_all = set(cols_by_type.get("numeric", [])) if cols_by_type else set()
+        numeric_cols = [c for c in columns if c in numeric_all and c in df.columns]
+        result: Dict[str, Any] = {"n_numeric": len(numeric_cols)}
+        if len(numeric_cols) < 2:
+            return result
+        from axiolyze.core.statistics import compute_correlations, compute_matrix_stability
+        matrix = compute_correlations(df, numeric_cols, "pearson")
+        if matrix is None:
+            return result
+        st = compute_matrix_stability(matrix, include_vif=True)
+        if st is not None:
+            result.update({
+                "condition_number": st.get("condition_number"),
+                "rank": st.get("rank"),
+                "expected_rank": int(matrix.shape[0]),
+                "vif_max": st.get("vif_max"),
+            })
+        return result
+    except Exception:
+        return None
+
+
 def _compute_vertex_feature_importance(
     session_id: str, vertex_id: str,
     row_filter: Optional[List[Dict[str, Any]]] = None,
@@ -1315,6 +1353,7 @@ def register() -> None:
     pipeline_hooks.get_unique_column_values = _get_unique_column_values
     pipeline_hooks.compute_distribution = _compute_distribution
     pipeline_hooks.compute_correlation = _compute_correlation
+    pipeline_hooks.compute_columns_stability = _compute_columns_stability
     pipeline_hooks.restore_pipeline = _restore_pipeline
     pipeline_hooks.persist_pipeline = _persist_pipeline
     pipeline_hooks.list_projects = _list_projects
