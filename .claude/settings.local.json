@@ -37,7 +37,8 @@
       "PowerShell(Get-Process python,pythonw,node -ErrorAction SilentlyContinue)",
       "PowerShell(\"--- python/node processes ---\")",
       "PowerShell(\"--- can we bind 8000? ---\")",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(PYTHONPATH='deps/repo_vdag;deps/repo_glm;.' .dev/Scripts/python.exe -c ' *)"
     ]
   }
 }
