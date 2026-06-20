@@ -249,6 +249,27 @@ def _get_vertex_columns(
     return _bridge_get_vertex_columns(pipeline, vertex_id)
 
 
+def _get_numeric_columns(session_id: str, vertex_id: str) -> List[str]:
+    """Return every numeric-dtype column at a vertex (features *and* service).
+
+    Used by the Target-Encoding dialog's "numeric column to orient on" selector:
+    that column is typically the GLM target (a numeric service column, so not in
+    the schema's feature `numeric` list), so we resolve numeric-ness from the
+    actual frame dtypes rather than the schema role buckets.
+    """
+    import numpy as np
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return []
+    try:
+        df = pipeline.get_data_for_vertex(vertex_id)
+        if df is None:
+            return []
+        return [c for c in df.columns if np.issubdtype(df[c].dtype, np.number)]
+    except Exception:
+        return []
+
+
 def _get_unique_column_values(
     session_id: str, vertex_id: str, column: str
 ) -> List[str]:
@@ -261,6 +282,36 @@ def _get_unique_column_values(
         if df is None or column not in df.columns:
             return []
         return sorted(df[column].dropna().astype(str).unique().tolist())
+    except Exception:
+        return []
+
+
+def _get_value_frequencies(
+    session_id: str, vertex_id: str, column: str, max_values: int = 300,
+) -> List[Dict[str, Any]]:
+    """Return [{value, count, pct}] for a column at a vertex, most-frequent first.
+
+    Powers the Category-Mapping dialog's value chips (e.g. "Lada (18.8%)").
+    Capped to the top ``max_values`` categories so very high-cardinality columns
+    don't blow up the payload.
+    """
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return []
+    try:
+        df = pipeline.get_data_for_vertex(vertex_id)
+        if df is None or column not in df.columns:
+            return []
+        s = df[column].dropna().astype(str)
+        total = int(len(s))
+        if total == 0:
+            return []
+        vc = s.value_counts().head(max_values)
+        return [
+            {"value": str(val), "count": int(cnt),
+             "pct": round(100.0 * int(cnt) / total, 1)}
+            for val, cnt in vc.items()
+        ]
     except Exception:
         return []
 
@@ -428,10 +479,19 @@ def _compute_vertex_feature_importance(
             return None
         if row_filter:
             df = apply_filter_mask(df, row_filter)
+        # Resolve the schema from the *selected* vertex so it matches the frame
+        # being analysed: a vertex downstream of a Tiny Schema node carries the
+        # branch's narrowed schema (single working target), while the root only
+        # holds the candidate target pool.  Fall back to root when the selected
+        # vertex has no schema yet.
         schema = None
-        root_id = pipeline.root_vertex_id
-        if root_id and root_id in pipeline.vertices:
-            schema = _get_vertex_schema(pipeline.vertices[root_id])
+        vertex = pipeline.vertices.get(vertex_id)
+        if vertex is not None:
+            schema = _get_vertex_schema(vertex)
+        if schema is None:
+            root_id = pipeline.root_vertex_id
+            if root_id and root_id in pipeline.vertices:
+                schema = _get_vertex_schema(pipeline.vertices[root_id])
         from dataclasses import asdict
         from axiolyze.core.statistics import compute_feature_importance
         return asdict(compute_feature_importance(df, schema))
@@ -491,6 +551,47 @@ def _compute_vertex_grouped_stats(
         return {
             "data": list(wide.values()),
             "bar_specs": bar_specs,
+            "warning": result.warning,
+        }
+    except Exception:
+        return None
+
+
+def _compute_vertex_grouped_violin(
+    session_id: str,
+    vertex_id: str,
+    value_col: str,
+    primary_col: str,
+    secondary_col: str,
+    row_filter: Optional[List[Dict[str, Any]]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Sampled long-form values for a grouped violin on the Multivariate tab.
+
+    Returns {"rows": [{primary, secondary, value}], "primaries", "secondaries",
+    "value_col", "primary_col", "secondary_col", "warning"}.  The UI feeds these to
+    Plotly's native ``go.Violin`` (filled vertical violins grouped by primary,
+    coloured/dodged by secondary — the seaborn ``hue`` layout).
+    """
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return None
+    try:
+        df = pipeline.get_data_for_vertex(vertex_id)
+        if df is None:
+            return None
+        if row_filter:
+            df = apply_filter_mask(df, row_filter)
+        from axiolyze.core.statistics import compute_grouped_violin_samples
+        result = compute_grouped_violin_samples(
+            df, value_col, primary_col, secondary_col
+        )
+        return {
+            "rows": result.rows,
+            "primaries": result.primaries,
+            "secondaries": result.secondaries,
+            "value_col": result.value_col,
+            "primary_col": result.primary_col,
+            "secondary_col": result.secondary_col,
             "warning": result.warning,
         }
     except Exception:
@@ -1294,6 +1395,129 @@ def _add_model_node(
     return vertex_id
 
 
+def _resolve_working_target(schema: Any) -> Optional[str]:
+    """First selected target, else first candidate from the pool, else None."""
+    if schema is None:
+        return None
+    tcols = list(getattr(schema, "target_columns", None) or [])
+    if not tcols:
+        tcols = list(getattr(schema, "available_target_columns", None) or [])
+    return tcols[0] if tcols else None
+
+
+def _model_feature_split(
+    pipeline: Any, parent_id: str, kept_columns: Optional[List[str]],
+) -> Tuple[List[str], List[str], List[str]]:
+    """Return (numeric, categorical, all_feature_cols) at parent_id, optionally
+    restricted to ``kept_columns`` (preserving the vertex's column order)."""
+    cols_by_type = _bridge_get_vertex_columns(pipeline, parent_id) or {}
+    numeric_all = list(cols_by_type.get("numeric", []))
+    cat_all = list(cols_by_type.get("categorical", [])) + list(
+        cols_by_type.get("ordered_categorical", [])
+    )
+    all_features = numeric_all + cat_all
+    if kept_columns is None:
+        return numeric_all, cat_all, all_features
+    kept = set(kept_columns)
+    numeric = [c for c in numeric_all if c in kept]
+    cats = [c for c in cat_all if c in kept]
+    return numeric, cats, all_features
+
+
+def _describe_model_formula(
+    session_id: str,
+    parent_id: str,
+    kept_columns: Optional[List[str]],
+    family: str,
+    link: str,
+) -> Optional[Dict[str, Any]]:
+    """Build the GLM formula preview for the model dialog (before fitting)."""
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return None
+    try:
+        numeric, cats, _ = _model_feature_split(pipeline, parent_id, kept_columns)
+        vertex = pipeline.vertices.get(parent_id)
+        schema = _get_vertex_schema(vertex) if vertex is not None else None
+        target = _resolve_working_target(schema)
+        exposure = None
+        if schema is not None and hasattr(schema, "get_working_exposure"):
+            exposure = schema.get_working_exposure()
+
+        warning = ""
+        if target is None:
+            target = "<target>"
+            warning = ("No working target resolved — add a Tiny Schema node upstream "
+                       "to choose one.")
+        elif cats:
+            warning = ("Categorical feature(s) " + ", ".join(cats) + " need an encoder "
+                       "(Target Encoding / WoE) upstream — the GLM fits numeric features only.")
+
+        from axiolyze.models.glm_estimator import build_glm_formula
+        formula = build_glm_formula(target, numeric, cats, exposure)
+        return {
+            "formula": formula,
+            "target": target,
+            "family": family,
+            "link": link,
+            "exposure": exposure or "",
+            "n_numeric": len(numeric),
+            "n_categorical": len(cats),
+            "warning": warning,
+        }
+    except Exception:
+        return None
+
+
+def _add_model_flow(
+    session_id: str,
+    parent_id: str,
+    kept_columns: Optional[List[str]],
+    family: str,
+    link: str,
+) -> Optional[Dict[str, Any]]:
+    """Option-A model flow: insert ColumnRemover → hidden Transliterator → model
+    upstream of the chosen node in one action.  Unselected feature columns are
+    dropped; column names are transliterated to Latin under the hood.
+
+    Returns fresh {"nodes", "edges", "model_id"} (BFS-laid-out, like delete).
+    """
+    import uuid
+    pipeline = registry.get(session_id)
+    if pipeline is None or not parent_id:
+        return None
+    try:
+        _, _, all_features = _model_feature_split(pipeline, parent_id, None)
+        kept = set(kept_columns) if kept_columns else set(all_features)
+        columns_to_remove = [c for c in all_features if c not in kept]
+
+        remover_id = _add_transformation(
+            session_id, parent_id, "GLMColumnRemoverTransformation",
+            {"columns_to_remove": columns_to_remove}, "cr_" + uuid.uuid4().hex[:10],
+        )
+        if remover_id is None:
+            return None
+        translit_id = _add_transformation(
+            session_id, remover_id, "GLMColumnNameTransliterator",
+            {"features_to_transform": "all", "transliterate_auxiliary": True},
+            "tr_" + uuid.uuid4().hex[:10],
+        )
+        if translit_id is None:
+            return None
+        model_id = _add_model_node(
+            session_id, translit_id, family, link, "ml_" + uuid.uuid4().hex[:10],
+        )
+        if model_id is None:
+            return None
+
+        registry.persist(session_id)
+        nodes, edges = _pipeline_to_ui(pipeline)
+        return {"nodes": nodes, "edges": edges, "model_id": model_id}
+    except Exception as exc:
+        _logging.error("[_add_model_flow] failed: %s", exc, exc_info=True)
+        return None
+
+
 def _export_pipeline(session_id: str, vertex_id: str) -> Optional[bytes]:
     """
     Build and serialize a fitted sklearn.pipeline.Pipeline for the branch
@@ -1351,6 +1575,8 @@ def register() -> None:
     pipeline_hooks.describe_transformer = describe_transformer
     pipeline_hooks.get_vertex_columns = _get_vertex_columns
     pipeline_hooks.get_unique_column_values = _get_unique_column_values
+    pipeline_hooks.get_numeric_columns = _get_numeric_columns
+    pipeline_hooks.get_value_frequencies = _get_value_frequencies
     pipeline_hooks.compute_distribution = _compute_distribution
     pipeline_hooks.compute_correlation = _compute_correlation
     pipeline_hooks.compute_columns_stability = _compute_columns_stability
@@ -1359,6 +1585,7 @@ def register() -> None:
     pipeline_hooks.list_projects = _list_projects
     pipeline_hooks.compute_vertex_feature_importance = _compute_vertex_feature_importance
     pipeline_hooks.compute_vertex_grouped_stats = _compute_vertex_grouped_stats
+    pipeline_hooks.compute_vertex_grouped_violin = _compute_vertex_grouped_violin
     pipeline_hooks.fit_column_distribution = _fit_column_distribution
     pipeline_hooks.get_column_filter_options = _get_column_filter_options
     pipeline_hooks.get_schema = _get_schema
@@ -1374,5 +1601,7 @@ def register() -> None:
     pipeline_hooks.get_tiny_schema_pools = _get_tiny_schema_pools
     pipeline_hooks.describe_glm_families = describe_glm_families
     pipeline_hooks.add_model_node = _add_model_node
+    pipeline_hooks.add_model_flow = _add_model_flow
+    pipeline_hooks.describe_model_formula = _describe_model_formula
     pipeline_hooks.get_model_results = _get_model_results
     pipeline_hooks.export_pipeline = _export_pipeline
