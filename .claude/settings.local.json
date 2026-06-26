@@ -75,7 +75,10 @@
       "Bash(.dev/Scripts/python.exe -c \"import plotly; print\\('plotly', plotly.__version__\\)\")",
       "Bash(.dev/Scripts/python.exe -c \"import reflex as rx; print\\('rx.plotly:', hasattr\\(rx, 'plotly'\\)\\)\")",
       "Bash(git -C deps/repo_glm status --short)",
-      "Bash(git -C deps/repo_vdag status --short)"
+      "Bash(git -C deps/repo_vdag status --short)",
+      "PowerShell(git add deps/repo_vdag)",
+      "PowerShell(git submodule status)",
+      "PowerShell(git -C deps/repo_vdag log -1 --oneline)"
     ]
   }
 }
