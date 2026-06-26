@@ -802,6 +802,43 @@ def _update_schema(session_id: str, schema_dict: Dict[str, str]) -> None:
         )
 
 
+def _invalidate_vertex_and_descendants(pipeline: Any, vertex_id: str) -> None:
+    """Drop the manifested state of a vertex and every descendant so the next
+    manifest / data-preview pass recomputes instead of reusing stale cache.
+
+    The edited vertex's transformer is rebuilt fresh by the caller, so it only
+    needs its manifest flag cleared.  Descendant transformers, however, keep
+    their old ``fitted_`` state — which was learned from the *previous* upstream
+    output — so we drop that flag to force a re-fit against the new data when
+    ``_apply_transformation_chain`` next walks the branch.
+    """
+    seen: set = set()
+    stack = [vertex_id]
+    while stack:
+        vid = stack.pop()
+        if vid in seen:
+            continue
+        seen.add(vid)
+        v = pipeline.vertices.get(vid)
+        if v is not None:
+            v.is_manifested = False
+            v.state = None
+            if vid != vertex_id and v.transformation is not None:
+                # Re-fit descendants on the new upstream data.  Model vertices
+                # track readiness via 'fitted'; transformers via 'fitted_'.
+                for flag in ("fitted_", "fitted"):
+                    if hasattr(v.transformation, flag):
+                        try:
+                            setattr(v.transformation, flag, False)
+                        except Exception:
+                            pass
+                if vid != vertex_id:
+                    v.transformation_state = "initialized"
+        for edge in pipeline.edges.values():
+            if edge.from_vertex_id == vid:
+                stack.append(edge.to_vertex_id)
+
+
 def _update_transformation_config(
     session_id: str,
     vertex_id: str,
@@ -814,6 +851,30 @@ def _update_transformation_config(
     vertex = pipeline.vertices.get(vertex_id)
     if vertex is None:
         return
+
+    # Auto-fill schema-derivable params from the parent's schema, mirroring
+    # _add_transformation so the rebuilt transformer gets the same params the
+    # add path would have produced.  Fall back to the root schema.
+    parent_id = next(
+        (e.from_vertex_id for e in pipeline.edges.values() if e.to_vertex_id == vertex_id),
+        None,
+    )
+    schema = None
+    if parent_id is not None:
+        parent_vertex = pipeline.vertices.get(parent_id)
+        if parent_vertex is not None:
+            schema = _get_vertex_schema(parent_vertex)
+    if schema is None:
+        root_id = pipeline.root_vertex_id
+        if root_id and root_id in pipeline.vertices:
+            schema = _get_vertex_schema(pipeline.vertices[root_id])
+
+    autofill_error: Optional[str] = None
+    try:
+        config = autofill_schema_params(class_name, config, schema)
+    except ValueError as e:
+        autofill_error = str(e)
+
     for edge in pipeline.edges.values():
         if edge.to_vertex_id == vertex_id:
             edge.config = config
@@ -821,7 +882,29 @@ def _update_transformation_config(
             break
     vertex.transformation_config = config
     vertex.metadata["transformation_class"] = class_name
-    vertex.transformation_state = "initialized"
+
+    # Rebuild the transformer from the new config.  Without this the vertex keeps
+    # its previously-fitted instance (old params) and the manifest/preview chain
+    # reuses it as-is, so edits never reach the data.
+    transformer_class = get_transformer_class(class_name)
+    if transformer_class is not None:
+        try:
+            vertex.transformation = transformer_class(**config)
+            vertex.transformation_state = "initialized"
+            vertex.transformation_errors = []
+        except Exception as e:
+            vertex.transformation = None
+            vertex.transformation_state = "unchecked"
+            vertex.transformation_errors = [str(e)]
+    else:
+        vertex.transformation_state = "initialized"
+
+    if autofill_error and autofill_error not in vertex.transformation_errors:
+        vertex.transformation_errors = [autofill_error]
+
+    # Stale state on this vertex and everything downstream must be invalidated so
+    # re-manifest and data previews recompute against the new params.
+    _invalidate_vertex_and_descendants(pipeline, vertex_id)
 
 
 def _restore_pipeline(

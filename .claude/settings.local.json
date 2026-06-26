@@ -78,7 +78,14 @@
       "Bash(git -C deps/repo_vdag status --short)",
       "PowerShell(git add deps/repo_vdag)",
       "PowerShell(git submodule status)",
-      "PowerShell(git -C deps/repo_vdag log -1 --oneline)"
+      "PowerShell(git -C deps/repo_vdag log -1 --oneline)",
+      "Bash(python -c \"import axiolyze, bridge_layer.hooks_registration as h; print\\('imports OK'\\)\")",
+      "Bash(.dev/Scripts/python.exe -c \"import axiolyze, bridge_layer.hooks_registration as h; print\\('imports OK'\\)\")",
+      "Bash(.dev/Scripts/python.exe -c \"import axiolyze; print\\('axiolyze OK from', axiolyze.__file__\\)\")",
+      "Bash(.dev/Scripts/python.exe -m pip show axiolyze)",
+      "Bash(.dev/Scripts/python.exe -m pip show -f axiolyze)",
+      "Bash(.dev/Scripts/python.exe -c ' *)",
+      "Bash(.dev/Scripts/python.exe \"C:\\\\Users\\\\ALEKSA~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\E--axiolyzeProject-visualaxiolyze\\\\9be21811-163d-42f3-bb03-67e54dd07b1a\\\\scratchpad\\\\repro.py\")"
     ]
   }
 }

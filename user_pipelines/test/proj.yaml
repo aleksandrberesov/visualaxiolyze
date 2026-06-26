@@ -1,0 +1,89 @@
+graph_id: graph_f3938d09
+root_vertex_id: vertex_0
+data_source_reference: null
+vertices:
+  vertex_0:
+    vertex_type: root
+    transformation_config: {}
+    transformation_state: initialized
+    is_manifested: true
+    is_available: true
+    metadata:
+      schema: &id001
+        target_columns:
+        - y
+        index_columns: []
+        exposure_column: null
+        exposure_columns: []
+        numeric_columns:
+        - x
+        categorical_columns: []
+        ordered_categorical_columns: []
+        fine_time_column: null
+        coarse_time_column: null
+        timing_columns: []
+        datetime_columns: []
+        available_target_columns: []
+        available_categorical_columns: []
+        available_time_columns: []
+        excluded_columns: []
+        bad_directions: null
+        comparison_mode: null
+        target_types: null
+    schema: *id001
+  vbin:
+    vertex_type: data_state
+    transformation_config: &id002
+      features_to_transform:
+      - x
+      methods:
+        x:
+        - интервалы
+      n_bins:
+        x: 2
+      keep_original: true
+    transformation_state: applied
+    is_manifested: true
+    is_available: true
+    metadata:
+      created_at: '2026-06-26T13:43:28.362909'
+      transformation_class: GLMBinningTransformation
+    schema:
+      target_columns:
+      - y
+      index_columns: []
+      exposure_column: null
+      exposure_columns: []
+      numeric_columns:
+      - x
+      - x_интервалы_2
+      categorical_columns: []
+      ordered_categorical_columns: []
+      fine_time_column: null
+      coarse_time_column: null
+      timing_columns: []
+      datetime_columns: []
+      available_target_columns: []
+      available_categorical_columns: []
+      available_time_columns: []
+      excluded_columns: []
+      bad_directions: null
+      comparison_mode: null
+      target_types: null
+edges:
+  edge_0:
+    from_vertex_id: vertex_0
+    to_vertex_id: vbin
+    transformation_type: transformer
+    transformation_class: GLMBinningTransformation
+    config: *id002
+    metadata:
+      created_at: '2026-06-26T13:43:28.362927'
+computed_results:
+  distributions: {}
+  mixture_fitting: {}
+  correlations: {}
+  feature_importance: {}
+  descriptive_stats: {}
+  histogram_max_points: 200
+  kde_max_points: 200
