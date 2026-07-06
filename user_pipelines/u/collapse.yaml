@@ -1,0 +1,151 @@
+graph_id: graph_a94faf28
+root_vertex_id: vertex_0
+data_source_reference:
+  type: file
+  path: C:/Users/ALEKSA~1/AppData/Local/Temp/claude/E--axiolyzeProject-visualaxiolyze/0a07e051-ea42-4981-8cf5-4cf055014ca4/scratchpad/model.csv
+vertices:
+  vertex_0:
+    vertex_type: root
+    transformation_config: {}
+    transformation_state: initialized
+    is_manifested: true
+    is_available: true
+    metadata:
+      schema: &id001
+        target_columns: []
+        index_columns: []
+        exposure_column: null
+        exposure_columns: []
+        numeric_columns:
+        - a
+        - b
+        - c
+        - y
+        categorical_columns: []
+        ordered_categorical_columns: []
+        fine_time_column: null
+        coarse_time_column: null
+        timing_columns: []
+        datetime_columns: []
+        available_target_columns: []
+        available_categorical_columns: []
+        available_time_columns: []
+        excluded_columns: []
+        bad_directions: null
+        comparison_mode: null
+        target_types: null
+      needs_base_schema: true
+    schema: *id001
+  cr_3100be0752:
+    vertex_type: data_state
+    transformation_config: &id002
+      columns_to_remove:
+      - c
+      - y
+    transformation_state: applied
+    is_manifested: true
+    is_available: false
+    metadata:
+      created_at: '2026-07-05T19:37:05.766349'
+      transformation_class: GLMColumnRemoverTransformation
+    schema:
+      target_columns: []
+      index_columns: []
+      exposure_column: null
+      exposure_columns: []
+      numeric_columns:
+      - a
+      - b
+      categorical_columns: []
+      ordered_categorical_columns: []
+      fine_time_column: null
+      coarse_time_column: null
+      timing_columns: []
+      datetime_columns: []
+      available_target_columns: []
+      available_categorical_columns: []
+      available_time_columns: []
+      excluded_columns: []
+      bad_directions: {}
+      comparison_mode: {}
+      target_types: {}
+  tr_84461f460d:
+    vertex_type: data_state
+    transformation_config: &id003
+      features_to_transform: all
+      transliterate_auxiliary: true
+    transformation_state: applied
+    is_manifested: true
+    is_available: false
+    metadata:
+      created_at: '2026-07-05T19:37:05.782088'
+      transformation_class: GLMColumnNameTransliterator
+    schema:
+      target_columns: []
+      index_columns: []
+      exposure_column: null
+      exposure_columns: []
+      numeric_columns:
+      - a
+      - b
+      - a
+      - b
+      categorical_columns: []
+      ordered_categorical_columns: []
+      fine_time_column: null
+      coarse_time_column: null
+      timing_columns: []
+      datetime_columns: []
+      available_target_columns: []
+      available_categorical_columns: []
+      available_time_columns: []
+      excluded_columns: []
+      bad_directions: {}
+      comparison_mode: {}
+      target_types: null
+  ml_032a5a9d8d:
+    vertex_type: model
+    transformation_config: &id004
+      family: Gaussian
+      link: Identity
+    transformation_state: initialized
+    is_manifested: false
+    is_available: false
+    metadata:
+      created_at: '2026-07-05T19:37:05.803848'
+      transformation_class: GLMModelEstimator
+      label: GLM (Gaussian)
+    schema: null
+edges:
+  edge_0:
+    from_vertex_id: vertex_0
+    to_vertex_id: cr_3100be0752
+    transformation_type: transformer
+    transformation_class: GLMColumnRemoverTransformation
+    config: *id002
+    metadata:
+      created_at: '2026-07-05T19:37:05.766374'
+  edge_1:
+    from_vertex_id: cr_3100be0752
+    to_vertex_id: tr_84461f460d
+    transformation_type: transformer
+    transformation_class: GLMColumnNameTransliterator
+    config: *id003
+    metadata:
+      created_at: '2026-07-05T19:37:05.782111'
+  edge_2:
+    from_vertex_id: tr_84461f460d
+    to_vertex_id: ml_032a5a9d8d
+    transformation_type: model
+    transformation_class: GLMModelEstimator
+    config: *id004
+    metadata:
+      created_at: '2026-07-05T19:37:05.803877'
+computed_results:
+  distributions: {}
+  mixture_fitting: {}
+  correlations: {}
+  feature_importance: {}
+  descriptive_stats: {}
+  histogram_max_points: 200
+  kde_max_points: 200

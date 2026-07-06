@@ -111,6 +111,40 @@ def _sync_statuses(
     return sync_statuses_from_pipeline(pipeline, nodes)
 
 
+def _read_csv_auto(filepath_or_buffer: Any) -> Any:
+    """Read a CSV, auto-detecting the delimiter (comma, semicolon, tab, pipe).
+
+    Excel/European CSVs are frequently ``;``-separated; a plain
+    ``pd.read_csv()`` would then load an entire row into a single column.
+    We sniff the delimiter from a sample of the header and pass it explicitly.
+    ``utf-8-sig`` transparently strips a BOM (common in Excel exports) while
+    still reading plain UTF-8.
+    """
+    import csv
+    import pandas as pd
+
+    sep = ","
+    try:
+        if hasattr(filepath_or_buffer, "read"):
+            sample = filepath_or_buffer.read(8192)
+            filepath_or_buffer.seek(0)
+        else:
+            with open(filepath_or_buffer, "r", encoding="utf-8-sig", errors="replace") as fh:
+                sample = fh.read(8192)
+        if sample:
+            try:
+                sep = csv.Sniffer().sniff(sample, delimiters=",;\t|").delimiter
+            except csv.Error:
+                # Single-column file or ambiguous — pick the most frequent
+                # candidate on the header line, defaulting to comma.
+                header = sample.splitlines()[0] if sample.splitlines() else ""
+                best = max(",;\t|", key=header.count)
+                sep = best if header.count(best) > 0 else ","
+    except Exception:
+        sep = ","
+    return pd.read_csv(filepath_or_buffer, sep=sep, encoding="utf-8-sig")
+
+
 def _attach_data(
     session_id: str, file_path: str, ext: str, schema_path: Optional[str] = None
 ) -> Optional[Tuple[str, str]]:
@@ -119,7 +153,7 @@ def _attach_data(
     from axiolyze.core.schema import DataSchema
 
     try:
-        df = pd.read_csv(file_path) if ext == "csv" else pd.read_parquet(file_path)
+        df = _read_csv_auto(file_path) if ext == "csv" else pd.read_parquet(file_path)
     except Exception:
         return None
 
@@ -284,6 +318,58 @@ def _get_unique_column_values(
         return sorted(df[column].dropna().astype(str).unique().tolist())
     except Exception:
         return []
+
+
+def _fmt_sample_num(x: Any) -> str:
+    """Compact number formatting for column sample strings."""
+    try:
+        xf = float(x)
+    except (TypeError, ValueError):
+        return str(x)
+    if xf == int(xf) and abs(xf) < 1e15:
+        return str(int(xf))
+    return f"{xf:.4g}"
+
+
+def _get_column_samples(session_id: str, vertex_id: str) -> Dict[str, str]:
+    """Return {column: short human-readable sample string} for every column at a
+    vertex, for hover tooltips on the transformer column-picker badges.
+
+    Numeric columns show range + a few examples; others show distinct-value
+    examples.  Empty dict when the vertex has no data (not yet manifested).
+    """
+    import numpy as np
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        return {}
+    try:
+        df = pipeline.get_data_for_vertex(vertex_id)
+    except Exception:
+        return {}
+    if df is None or df.empty:
+        return {}
+
+    out: Dict[str, str] = {}
+    for col in df.columns:
+        try:
+            s = df[col].dropna()
+            if s.empty:
+                out[str(col)] = "(all missing)"
+                continue
+            if np.issubdtype(df[col].dtype, np.number):
+                lo = _fmt_sample_num(s.min())
+                hi = _fmt_sample_num(s.max())
+                examples = ", ".join(_fmt_sample_num(v) for v in s.head(3).tolist())
+                out[str(col)] = f"numeric · range {lo}…{hi} · e.g. {examples}"
+            else:
+                nun = int(s.nunique())
+                vals = [str(v) for v in s.astype(str).unique()[:4]]
+                more = nun - len(vals)
+                tail = f" (+{more} more)" if more > 0 else ""
+                out[str(col)] = f"{nun} distinct · " + ", ".join(vals) + tail
+        except Exception:
+            continue
+    return out
 
 
 def _get_value_frequencies(
@@ -1660,6 +1746,7 @@ def register() -> None:
     pipeline_hooks.get_unique_column_values = _get_unique_column_values
     pipeline_hooks.get_numeric_columns = _get_numeric_columns
     pipeline_hooks.get_value_frequencies = _get_value_frequencies
+    pipeline_hooks.get_column_samples = _get_column_samples
     pipeline_hooks.compute_distribution = _compute_distribution
     pipeline_hooks.compute_correlation = _compute_correlation
     pipeline_hooks.compute_columns_stability = _compute_columns_stability

@@ -300,39 +300,123 @@ def graph_edge_to_edge(graph_edge: GraphEdge) -> Dict[str, Any]:
     }
 
 
-def _layout_positions(pipeline: PipelineGraph) -> Dict[str, Dict[str, float]]:
+def _collapse_model_flows(
+    pipeline: PipelineGraph,
+) -> Tuple[set, Dict[str, str], Dict[str, Dict[str, Any]]]:
+    """Detect model flows and describe how to render them as a single node.
+
+    A model flow is ``parent → ColumnRemover → Transliterator → model``, built
+    by ``_add_model_flow``.  Detection is structural and safe: the
+    transliterator is never user-addable (hidden from the palette), so any model
+    whose parent is a transliterator and whose grandparent is a column-remover
+    is a model flow.  Works for both freshly-built and previously-saved graphs
+    without any migration.
+
+    Returns
+    -------
+    (internal_ids, model_parent, model_flow)
+        internal_ids : set of remover/transliterator vertex ids to hide.
+        model_parent : {model_id: real_parent_id} for the synthetic edge.
+        model_flow   : {model_id: {remover_id, translit_id, parent_id,
+                        removed_columns}} — injected into the model node so the
+                        UI can edit / delete the whole flow.
+    """
+    # child -> parent over available vertices (each non-root vertex has one parent)
+    parent_of: Dict[str, str] = {}
+    for e in pipeline.edges.values():
+        fv = pipeline.vertices.get(e.from_vertex_id)
+        tv = pipeline.vertices.get(e.to_vertex_id)
+        if fv is None or tv is None or not fv.is_available or not tv.is_available:
+            continue
+        parent_of[e.to_vertex_id] = e.from_vertex_id
+
+    def cls(vid: Optional[str]) -> str:
+        v = pipeline.vertices.get(vid) if vid else None
+        return v.metadata.get("transformation_class", "") if v else ""
+
+    internal_ids: set = set()
+    model_parent: Dict[str, str] = {}
+    model_flow: Dict[str, Dict[str, Any]] = {}
+
+    for v in pipeline.vertices.values():
+        if not v.is_available or v.vertex_type != "model":
+            continue
+        translit_id = parent_of.get(v.vertex_id)
+        if not translit_id or cls(translit_id) != "GLMColumnNameTransliterator":
+            continue
+        remover_id = parent_of.get(translit_id)
+        if not remover_id or cls(remover_id) != "GLMColumnRemoverTransformation":
+            continue
+        real_parent = parent_of.get(remover_id)
+        if not real_parent:
+            continue
+        remover = pipeline.vertices.get(remover_id)
+        removed = list((remover.transformation_config or {}).get("columns_to_remove", [])) if remover else []
+        internal_ids.add(translit_id)
+        internal_ids.add(remover_id)
+        model_parent[v.vertex_id] = real_parent
+        model_flow[v.vertex_id] = {
+            "remover_id": remover_id,
+            "translit_id": translit_id,
+            "parent_id": real_parent,
+            "removed_columns": removed,
+        }
+    return internal_ids, model_parent, model_flow
+
+
+def _layout_positions(
+    pipeline: PipelineGraph,
+    hidden_ids: Optional[set] = None,
+    extra_edges: Optional[List[Tuple[str, str]]] = None,
+) -> Dict[str, Dict[str, float]]:
     """
     Assign (x, y) positions using a simple BFS level-layout.
 
     Root is at y=0, each depth level adds 150px.  Siblings are spaced
-    200px apart and centred under their parent.
+    200px apart per level.  ``hidden_ids`` are skipped and ``extra_edges``
+    (synthetic parent→child links) are added, so a collapsed model flow lays
+    out with the model one level below its real parent.
     """
+    hidden_ids = hidden_ids or set()
+    extra_edges = extra_edges or []
     root_id = pipeline.root_vertex_id
     if root_id is None:
         return {}
 
+    def visible(vid: str) -> bool:
+        v = pipeline.vertices.get(vid)
+        return v is not None and v.is_available and vid not in hidden_ids
+
+    # Build adjacency over visible vertices (real edges minus hidden, plus synthetic)
+    adj: Dict[str, List[str]] = {}
+    for edge in pipeline.edges.values():
+        f, t = edge.from_vertex_id, edge.to_vertex_id
+        if f in hidden_ids or t in hidden_ids:
+            continue
+        if visible(f) and visible(t):
+            adj.setdefault(f, []).append(t)
+    for f, t in extra_edges:
+        if visible(f) and visible(t):
+            adj.setdefault(f, []).append(t)
+
     # BFS to assign depth levels
     depth: Dict[str, int] = {root_id: 0}
-    children: Dict[str, List[str]] = {v: [] for v in pipeline.vertices}
     queue: deque = deque([root_id])
     order: List[str] = []
 
     while queue:
         vid = queue.popleft()
         order.append(vid)
-        for edge in pipeline.edges.values():
-            if edge.from_vertex_id == vid:
-                child = edge.to_vertex_id
-                if child not in depth and pipeline.vertices[child].is_available:
-                    depth[child] = depth[vid] + 1
-                    children[vid].append(child)
-                    queue.append(child)
+        for child in adj.get(vid, []):
+            if child not in depth:
+                depth[child] = depth[vid] + 1
+                queue.append(child)
 
-    # Assign x positions per level, centred
+    # Assign x positions per level
     positions: Dict[str, Dict[str, float]] = {}
     level_nodes: Dict[int, List[str]] = {}
     for vid in order:
-        if not pipeline.vertices[vid].is_available:
+        if not visible(vid):
             continue
         d = depth.get(vid, 0)
         level_nodes.setdefault(d, []).append(vid)
@@ -356,20 +440,47 @@ def pipeline_to_ui(
 
     Positions are computed with a BFS level-layout so the resulting graph
     is immediately readable without requiring the user to arrange nodes.
-    """
-    positions = _layout_positions(pipeline)
 
-    nodes = [
-        vertex_to_node(v, positions.get(v.vertex_id))
-        for v in pipeline.vertices.values()
-        if v.is_available
-    ]
-    available_ids = {v.vertex_id for v in pipeline.vertices.values() if v.is_available}
+    Model flows (ColumnRemover → Transliterator → model) are collapsed to a
+    single model node: the two under-the-hood vertices are hidden and a
+    synthetic edge links the real parent straight to the model.
+    """
+    internal_ids, model_parent, model_flow = _collapse_model_flows(pipeline)
+    extra_edges = [(parent, model) for model, parent in model_parent.items()]
+    positions = _layout_positions(pipeline, hidden_ids=internal_ids, extra_edges=extra_edges)
+
+    nodes = []
+    for v in pipeline.vertices.values():
+        if not v.is_available or v.vertex_id in internal_ids:
+            continue
+        node = vertex_to_node(v, positions.get(v.vertex_id))
+        flow = model_flow.get(v.vertex_id)
+        if flow is not None:
+            # Carry the hidden flow refs so the UI can edit / delete the whole chain.
+            node["data"]["model_flow_remover"] = flow["remover_id"]
+            node["data"]["model_flow_parent"] = flow["parent_id"]
+            node["data"]["model_flow_removed"] = flow["removed_columns"]
+        nodes.append(node)
+
+    visible_ids = {
+        v.vertex_id for v in pipeline.vertices.values()
+        if v.is_available and v.vertex_id not in internal_ids
+    }
     edges = [
         graph_edge_to_edge(e)
         for e in pipeline.edges.values()
-        if e.from_vertex_id in available_ids and e.to_vertex_id in available_ids
+        if e.from_vertex_id in visible_ids and e.to_vertex_id in visible_ids
     ]
+    # Synthetic parent → model edges replacing the hidden chain.
+    for model, parent in model_parent.items():
+        if parent in visible_ids and model in visible_ids:
+            edges.append({
+                "id":       f"mf_{parent}_{model}",
+                "source":   parent,
+                "target":   model,
+                "label":    "",
+                "animated": False,
+            })
     return nodes, edges
 
 
