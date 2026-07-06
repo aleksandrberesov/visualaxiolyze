@@ -1,0 +1,40 @@
+graph_id: graph_a9f2f67d
+root_vertex_id: vertex_0
+data_source_reference: null
+vertices:
+  vertex_0:
+    vertex_type: root
+    transformation_config: {}
+    transformation_state: initialized
+    is_manifested: false
+    is_available: true
+    metadata:
+      schema:
+        target_columns: []
+        index_columns: []
+        exposure_column: null
+        exposure_columns: []
+        numeric_columns: []
+        categorical_columns: []
+        ordered_categorical_columns: []
+        fine_time_column: null
+        coarse_time_column: null
+        timing_columns: []
+        datetime_columns: []
+        available_target_columns: []
+        available_categorical_columns: []
+        available_time_columns: []
+        excluded_columns: []
+        bad_directions: null
+        comparison_mode: null
+        target_types: null
+    schema: null
+edges: {}
+computed_results:
+  distributions: {}
+  mixture_fitting: {}
+  correlations: {}
+  feature_importance: {}
+  descriptive_stats: {}
+  histogram_max_points: 200
+  kde_max_points: 200

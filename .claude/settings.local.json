@@ -85,7 +85,11 @@
       "Bash(.dev/Scripts/python.exe -m pip show axiolyze)",
       "Bash(.dev/Scripts/python.exe -m pip show -f axiolyze)",
       "Bash(.dev/Scripts/python.exe -c ' *)",
-      "Bash(.dev/Scripts/python.exe \"C:\\\\Users\\\\ALEKSA~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\E--axiolyzeProject-visualaxiolyze\\\\9be21811-163d-42f3-bb03-67e54dd07b1a\\\\scratchpad\\\\repro.py\")"
+      "Bash(.dev/Scripts/python.exe \"C:\\\\Users\\\\ALEKSA~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\E--axiolyzeProject-visualaxiolyze\\\\9be21811-163d-42f3-bb03-67e54dd07b1a\\\\scratchpad\\\\repro.py\")",
+      "Bash(PYTHONPATH=\"deps/repo_glm\" .dev/Scripts/python.exe -c \"import pandas as pd; print\\('pandas', pd.__version__\\)\")",
+      "Bash(PYTHONPATH=\".\" ../../.dev/Scripts/python.exe -m pytest tests/ -q)",
+      "Bash(PYTHONPATH='deps/repo_vdag;deps/repo_glm;.' /e/axiolyzeProject/visualaxiolyze/.dev/Scripts/python.exe -c ' *)",
+      "Bash(PYTHONPATH='E:/axiolyzeProject/visualaxiolyze/deps/repo_vdag;E:/axiolyzeProject/visualaxiolyze/deps/repo_glm;E:/axiolyzeProject/visualaxiolyze' E:/axiolyzeProject/visualaxiolyze/.dev/Scripts/python.exe -c ' *)"
     ]
   }
 }

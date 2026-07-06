@@ -1,0 +1,153 @@
+graph_id: graph_72ee383d
+root_vertex_id: vertex_0
+data_source_reference:
+  type: file
+  path: C:/Users/ALEKSA~1/AppData/Local/Temp/claude/E--axiolyzeProject-visualaxiolyze/0a07e051-ea42-4981-8cf5-4cf055014ca4/scratchpad/rum.csv
+vertices:
+  vertex_0:
+    vertex_type: root
+    transformation_config: {}
+    transformation_state: initialized
+    is_manifested: true
+    is_available: true
+    metadata:
+      schema: &id001
+        target_columns:
+        - Оценка убытка
+        index_columns: []
+        exposure_column: Экспозиция
+        exposure_columns: []
+        numeric_columns:
+        - возраст
+        - стаж
+        categorical_columns: []
+        ordered_categorical_columns: []
+        fine_time_column: null
+        coarse_time_column: null
+        timing_columns: []
+        datetime_columns: []
+        available_target_columns:
+        - Оценка убытка
+        available_categorical_columns: []
+        available_time_columns: []
+        excluded_columns: []
+        bad_directions: null
+        comparison_mode: null
+        target_types: null
+      needs_base_schema: true
+    schema: *id001
+  cr_af7c4e5f10:
+    vertex_type: data_state
+    transformation_config: &id002
+      columns_to_remove:
+      - стаж
+    transformation_state: applied
+    is_manifested: true
+    is_available: true
+    metadata:
+      created_at: '2026-07-06T16:33:56.164717'
+      transformation_class: GLMColumnRemoverTransformation
+    schema:
+      target_columns:
+      - Оценка убытка
+      index_columns: []
+      exposure_column: Экспозиция
+      exposure_columns: []
+      numeric_columns:
+      - возраст
+      categorical_columns: []
+      ordered_categorical_columns: []
+      fine_time_column: null
+      coarse_time_column: null
+      timing_columns: []
+      datetime_columns: []
+      available_target_columns:
+      - Оценка убытка
+      available_categorical_columns: []
+      available_time_columns: []
+      excluded_columns: []
+      bad_directions: {}
+      comparison_mode: {}
+      target_types: {}
+  tr_dc9040ec16:
+    vertex_type: data_state
+    transformation_config: &id003
+      features_to_transform: all
+      auxiliary_columns:
+      - Оценка убытка
+      - Экспозиция
+      transliterate_auxiliary: false
+    transformation_state: applied
+    is_manifested: true
+    is_available: true
+    metadata:
+      created_at: '2026-07-06T16:33:56.168787'
+      transformation_class: GLMColumnNameTransliterator
+    schema:
+      target_columns:
+      - Оценка убытка
+      index_columns: []
+      exposure_column: Экспозиция
+      exposure_columns: []
+      numeric_columns:
+      - vozrast
+      categorical_columns: []
+      ordered_categorical_columns: []
+      fine_time_column: null
+      coarse_time_column: null
+      timing_columns: []
+      datetime_columns: []
+      available_target_columns:
+      - Оценка убытка
+      available_categorical_columns: []
+      available_time_columns: []
+      excluded_columns: []
+      bad_directions: {}
+      comparison_mode: {}
+      target_types: {}
+  ml_b6489d9556:
+    vertex_type: model
+    transformation_config: &id004
+      family: Poisson
+      link: Log
+    transformation_state: initialized
+    is_manifested: false
+    is_available: true
+    metadata:
+      created_at: '2026-07-06T16:33:56.184621'
+      transformation_class: GLMModelEstimator
+      label: GLM (Poisson)
+    schema: null
+edges:
+  edge_0:
+    from_vertex_id: vertex_0
+    to_vertex_id: cr_af7c4e5f10
+    transformation_type: transformer
+    transformation_class: GLMColumnRemoverTransformation
+    config: *id002
+    metadata:
+      created_at: '2026-07-06T16:33:56.164741'
+  edge_1:
+    from_vertex_id: cr_af7c4e5f10
+    to_vertex_id: tr_dc9040ec16
+    transformation_type: transformer
+    transformation_class: GLMColumnNameTransliterator
+    config: *id003
+    metadata:
+      created_at: '2026-07-06T16:33:56.168809'
+  edge_2:
+    from_vertex_id: tr_dc9040ec16
+    to_vertex_id: ml_b6489d9556
+    transformation_type: model
+    transformation_class: GLMModelEstimator
+    config: *id004
+    metadata:
+      created_at: '2026-07-06T16:33:56.184643'
+computed_results:
+  distributions: {}
+  mixture_fitting: {}
+  correlations: {}
+  feature_importance: {}
+  descriptive_stats: {}
+  histogram_max_points: 200
+  kde_max_points: 200

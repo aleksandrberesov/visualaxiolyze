@@ -112,37 +112,72 @@ def _sync_statuses(
 
 
 def _read_csv_auto(filepath_or_buffer: Any) -> Any:
-    """Read a CSV, auto-detecting the delimiter (comma, semicolon, tab, pipe).
+    """Read a CSV, auto-detecting delimiter, decimal separator, and encoding.
 
-    Excel/European CSVs are frequently ``;``-separated; a plain
-    ``pd.read_csv()`` would then load an entire row into a single column.
-    We sniff the delimiter from a sample of the header and pass it explicitly.
-    ``utf-8-sig`` transparently strips a BOM (common in Excel exports) while
-    still reading plain UTF-8.
+    Handles the common Russian/European Excel export (per modelling author):
+      * field delimiter — ``;`` is the usual one (a plain ``pd.read_csv`` would
+        otherwise load an entire row into a single column);
+      * decimal separator — ``,`` separates integer from fractional parts when
+        the field delimiter isn't a comma (e.g. ``1,5``), with ``.`` as the
+        thousands separator;
+      * encoding — ``utf-8``/BOM first, then Windows-1251 (Cyrillic), then a
+        never-failing Latin-1 last resort.
     """
     import csv
+    import re
     import pandas as pd
 
-    sep = ","
+    # --- sample for sniffing (encoding-tolerant: only ASCII markers matter) ---
     try:
         if hasattr(filepath_or_buffer, "read"):
-            sample = filepath_or_buffer.read(8192)
+            raw = filepath_or_buffer.read(65536)
             filepath_or_buffer.seek(0)
+            sample = raw if isinstance(raw, str) else raw.decode("utf-8", errors="replace")
         else:
-            with open(filepath_or_buffer, "r", encoding="utf-8-sig", errors="replace") as fh:
-                sample = fh.read(8192)
-        if sample:
-            try:
-                sep = csv.Sniffer().sniff(sample, delimiters=",;\t|").delimiter
-            except csv.Error:
-                # Single-column file or ambiguous — pick the most frequent
-                # candidate on the header line, defaulting to comma.
-                header = sample.splitlines()[0] if sample.splitlines() else ""
-                best = max(",;\t|", key=header.count)
-                sep = best if header.count(best) > 0 else ","
+            with open(filepath_or_buffer, "rb") as fh:
+                sample = fh.read(65536).decode("utf-8", errors="replace")
     except Exception:
-        sep = ","
-    return pd.read_csv(filepath_or_buffer, sep=sep, encoding="utf-8-sig")
+        sample = ""
+
+    # --- delimiter ---
+    sep = ","
+    if sample:
+        try:
+            sep = csv.Sniffer().sniff(sample, delimiters=",;\t|").delimiter
+        except csv.Error:
+            # Single-column file or ambiguous — pick the most frequent candidate
+            # on the header line, defaulting to comma.
+            header = sample.splitlines()[0] if sample.splitlines() else ""
+            best = max(",;\t|", key=header.count)
+            sep = best if header.count(best) > 0 else ","
+
+    # --- decimal separator (only ambiguous when the field sep isn't a comma) ---
+    read_kwargs: Dict[str, Any] = {"sep": sep}
+    if sep != "," and sample:
+        # The decimal is whichever of . / , appears *last* inside a numeric
+        # token — this separates European "1.234,56" (comma-decimal, dot
+        # thousands) from US "1,234.56" (dot-decimal) even with grouping.
+        comma_last = dot_last = 0
+        for tok in re.findall(r"\d[\d.,]*[.,]\d+", sample):
+            if tok.rfind(",") > tok.rfind("."):
+                comma_last += 1
+            else:
+                dot_last += 1
+        if comma_last > dot_last:
+            read_kwargs["decimal"] = ","
+            read_kwargs["thousands"] = "."
+
+    # --- encoding: utf-8(-sig) → cp1251 (Cyrillic) → latin-1 (never fails) ---
+    last_exc: Optional[Exception] = None
+    for enc in ("utf-8-sig", "cp1251", "latin-1"):
+        try:
+            return pd.read_csv(filepath_or_buffer, encoding=enc, **read_kwargs)
+        except UnicodeDecodeError as exc:
+            last_exc = exc
+            if hasattr(filepath_or_buffer, "seek"):
+                filepath_or_buffer.seek(0)
+    # latin-1 decodes any byte, so we normally never get here.
+    raise last_exc if last_exc else ValueError("Could not read CSV")
 
 
 def _attach_data(
@@ -1666,9 +1701,25 @@ def _add_model_flow(
         )
         if remover_id is None:
             return None
+        # Keep service columns (target / exposure / index) OUT of transliteration
+        # so their names never change — the model resolves its target by the
+        # original name and can't miss it. Only feature names get latinised.
+        service_cols: List[str] = []
+        parent_vertex = pipeline.vertices.get(parent_id)
+        parent_schema = _get_vertex_schema(parent_vertex) if parent_vertex else None
+        if parent_schema is not None:
+            for attr in ("target_columns", "index_columns", "exposure_columns"):
+                service_cols.extend(getattr(parent_schema, attr, None) or [])
+            if getattr(parent_schema, "exposure_column", None):
+                service_cols.append(parent_schema.exposure_column)
+            service_cols = list(dict.fromkeys(service_cols))  # dedupe, keep order
         translit_id = _add_transformation(
             session_id, remover_id, "GLMColumnNameTransliterator",
-            {"features_to_transform": "all", "transliterate_auxiliary": True},
+            {
+                "features_to_transform": "all",
+                "auxiliary_columns": service_cols,
+                "transliterate_auxiliary": False,
+            },
             "tr_" + uuid.uuid4().hex[:10],
         )
         if translit_id is None:
