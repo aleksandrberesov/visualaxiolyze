@@ -89,7 +89,9 @@
       "Bash(PYTHONPATH=\"deps/repo_glm\" .dev/Scripts/python.exe -c \"import pandas as pd; print\\('pandas', pd.__version__\\)\")",
       "Bash(PYTHONPATH=\".\" ../../.dev/Scripts/python.exe -m pytest tests/ -q)",
       "Bash(PYTHONPATH='deps/repo_vdag;deps/repo_glm;.' /e/axiolyzeProject/visualaxiolyze/.dev/Scripts/python.exe -c ' *)",
-      "Bash(PYTHONPATH='E:/axiolyzeProject/visualaxiolyze/deps/repo_vdag;E:/axiolyzeProject/visualaxiolyze/deps/repo_glm;E:/axiolyzeProject/visualaxiolyze' E:/axiolyzeProject/visualaxiolyze/.dev/Scripts/python.exe -c ' *)"
+      "Bash(PYTHONPATH='E:/axiolyzeProject/visualaxiolyze/deps/repo_vdag;E:/axiolyzeProject/visualaxiolyze/deps/repo_glm;E:/axiolyzeProject/visualaxiolyze' E:/axiolyzeProject/visualaxiolyze/.dev/Scripts/python.exe -c ' *)",
+      "Read(//e/axiolyzeProject//**)",
+      "Read(//e//**)"
     ]
   }
 }
