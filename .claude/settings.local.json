@@ -91,7 +91,28 @@
       "Bash(PYTHONPATH='deps/repo_vdag;deps/repo_glm;.' /e/axiolyzeProject/visualaxiolyze/.dev/Scripts/python.exe -c ' *)",
       "Bash(PYTHONPATH='E:/axiolyzeProject/visualaxiolyze/deps/repo_vdag;E:/axiolyzeProject/visualaxiolyze/deps/repo_glm;E:/axiolyzeProject/visualaxiolyze' E:/axiolyzeProject/visualaxiolyze/.dev/Scripts/python.exe -c ' *)",
       "Read(//e/axiolyzeProject//**)",
-      "Read(//e//**)"
+      "Read(//e//**)",
+      "Bash(kill %1)",
+      "Bash(jobs)",
+      "Bash(grep -iE \"\\\\.py$|\\\\.ipynb$|visualization|likelihood|io_utils\")",
+      "Bash(.dev/Scripts/python.exe -c \"import patsy, statsmodels; print\\('patsy', patsy.__version__, 'statsmodels', statsmodels.__version__\\)\")",
+      "Bash(.dev/Scripts/python.exe -c \"import unidecode; print\\('unidecode ok'\\)\")",
+      "Bash(cp \"/c/Users/Aleksandr/Downloads/Telegram Desktop/glm_analysis.py\" deps/repo_glm/axiolyze/legacy/glm_analysis.py)",
+      "Bash(.dev/Scripts/python.exe -c \"import axiolyze.legacy.glm_analysis as g; print\\('IMPORT OK'\\)\")",
+      "Bash(.dev/Scripts/python.exe -c \"import axiolyze; print\\(axiolyze.__file__\\)\")",
+      "Bash(PYTHONPATH=\"deps/repo_glm\" .dev/Scripts/python.exe -c \"import axiolyze; print\\('axiolyze at', axiolyze.__file__\\)\")",
+      "Bash(PYTHONPATH=\"deps/repo_glm\" .dev/Scripts/python.exe -c \"import axiolyze.legacy.glm_analysis as g; print\\('IMPORT OK'\\)\")",
+      "Bash(PYTHONPATH=deps/repo_glm .dev/Scripts/python.exe -c ' *)",
+      "Bash(PYTHONIOENCODING=utf-8 PYTHONPATH=\".\" ../../.dev/Scripts/python.exe -m pytest tests/test_glm_formula.py -q)",
+      "Bash(PYTHONIOENCODING=utf-8 PYTHONPATH=\".\" ../../.dev/Scripts/python.exe -m pytest tests/test_glm_formula.py -q -p no:cacheprovider)",
+      "Bash(PYTHONIOENCODING=utf-8 PYTHONPATH=\".\" ../../.dev/Scripts/python.exe -m pytest tests/test_glm_model_categorical.py -q -p no:cacheprovider)",
+      "Bash(PYTHONIOENCODING=utf-8 PYTHONPATH=. ../../.dev/Scripts/python.exe -c ' *)",
+      "Bash(PYTHONIOENCODING=utf-8 PYTHONPATH=\".\" ../../.dev/Scripts/python.exe -m pytest -q -p no:cacheprovider)",
+      "Bash(PYTHONIOENCODING=utf-8 PYTHONPATH='__CMDSUB_OUTPUT__;__CMDSUB_OUTPUT__/deps/repo_vdag;__CMDSUB_OUTPUT__/deps/repo_glm' GRAPHVISION_PIPELINE_HOOKS=bridge_layer.hooks_registration .dev/Scripts/python.exe -c ' *)",
+      "Bash(netstat -ano)",
+      "Bash(tasklist)",
+      "Bash(curl -s -o /dev/null -w \"frontend=%{http_code}\\\\n\" http://localhost:3322/)",
+      "Bash(PYTHONIOENCODING=utf-8 .dev/Scripts/python.exe -c ' *)"
     ]
   }
 }
