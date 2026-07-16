@@ -206,6 +206,47 @@ New regression test `test_fits_columns_with_spaces_and_non_ascii`; full suite **
 
 ---
 
+## Stub / missing-code audit (answer to Oxana 2026-07-12 11:41 "есть ли ещё заглушки?")
+
+Levels requirement (Oxana 11:13/11:15) — **satisfied**: `create_advanced_glm_formula` is called
+with `categorical_levels=…`, so the fitted formula keeps the explicit
+`C(col, Sum, levels=[…])` enumeration verbatim (verified: `C(Marka, Sum, levels=['Lada',
+'Mercedes','Жигули','Киа','Лада Самара','Мерседес-Бенц'])`). `predict()` maps unseen levels →
+representative via `apply_categorical_mapping` before `build_design_matrices`, so applying to new
+data with brand-new levels does not crash (verified on all-unseen-level rows).
+
+Other stubs / not-fully-ported code found:
+
+**Her originals still missing (send to finish Phase 4 export):**
+- `visualization.py` — **absent from the repo entirely**. `export_model_results` calls ~8 plot
+  helpers from it (`plot_coefficients`, `plot_predictions_vs_actual_interactive`,
+  `plot_residuals_interactive`, `plot_qq_interactive`, `plot_residuals_histogram_interactive`,
+  `plot_calibration_plot_simple`, `plot_crunched_residuals_interactive`).
+- `io_utils.py` — **trimmed**: `compute_pipeline_hash` missing (used by `analyze_glm_model`).
+- (Resolved already: `glm_analysis.py` stub → replaced; `likelihood_utils.py` GLM metrics → ported.)
+  Note: the model node's own metrics (`get_fit_summary`/`get_coefficients`/`get_chart_data`) read
+  from `model_dict` directly, so they work **without** `analyze_glm_model`/`visualization`.
+
+**Other stubs (not her originals):**
+- `core/statistics.py:942` — "load data by URL" not implemented (minor feature).
+- `legacy/support.py:75,78` — notebook ipywidget handlers (`_save_selected`/`_reset`) raise
+  NotImplementedError — notebook-GUI only, irrelevant to the graph app.
+- `core/graph.py` — TODOs: stale-result cleanup, chunked reading for big data, some correlation
+  methods. Incomplete, not breaking the model flow.
+
+**Stale/misleading (not real stubs):**
+- `GraphVision/models/config_state.py:27` says `GLMImputationTransformation: not implemented` — but
+  the class is fully implemented (`transformers/imputation.py:172`). The comment is outdated.
+
+**Related design gap (why the live-app bug happened):**
+- The auto-inserted hidden transliterator (`bridge_layer/hooks_registration.py:1704-1721`) uses
+  `transliterate_auxiliary=False`, so the **target/exposure keep their original names** — a Cyrillic/
+  spaced target then breaks the patsy formula LHS even when features are latinised. The
+  estimator-level `_safe_name_map` fix covers target+exposure+features uniformly (idempotent with the
+  feature transliterator), which is why it belongs in the estimator, not the hook.
+
+---
+
 ## Phase 3 — UI: contrast + model-type controls
 
 **Status:** [ ] not started

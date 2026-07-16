@@ -112,7 +112,8 @@
       "Bash(netstat -ano)",
       "Bash(tasklist)",
       "Bash(curl -s -o /dev/null -w \"frontend=%{http_code}\\\\n\" http://localhost:3322/)",
-      "Bash(PYTHONIOENCODING=utf-8 .dev/Scripts/python.exe -c ' *)"
+      "Bash(PYTHONIOENCODING=utf-8 .dev/Scripts/python.exe -c ' *)",
+      "Bash(grep -rnB1 -A2 \"except ImportError\" deps/repo_glm/axiolyze/legacy/glm_analysis.py)"
     ]
   }
 }
