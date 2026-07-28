@@ -1,4 +1,4 @@
-graph_id: graph_f3938d09
+graph_id: graph_cb00e55c
 root_vertex_id: vertex_0
 data_source_reference: null
 vertices:
@@ -11,74 +11,77 @@ vertices:
     metadata:
       schema: &id001
         target_columns:
-        - y
+        - Оценка убытка
         index_columns: []
         exposure_column: null
         exposure_columns: []
         numeric_columns:
-        - x
-        categorical_columns: []
+        - 'Unnamed: 0'
+        - YearMonth
+        - Страховая сумма
+        - Количество дней от события до урегулирования
+        categorical_columns:
+        - Марка
         ordered_categorical_columns: []
         fine_time_column: null
         coarse_time_column: null
         timing_columns: []
         datetime_columns: []
-        available_target_columns: []
-        available_categorical_columns: []
+        available_target_columns:
+        - Оценка убытка
+        available_categorical_columns:
+        - Марка
         available_time_columns: []
         excluded_columns: []
         bad_directions: null
         comparison_mode: null
         target_types: null
     schema: *id001
-  vbin:
-    vertex_type: data_state
+  vertex_1:
+    vertex_type: model
     transformation_config: &id002
-      features_to_transform:
-      - x
-      methods:
-        x:
-        - интервалы
-      n_bins:
-        x: 2
-      keep_original: true
-    transformation_state: applied
-    is_manifested: true
+      family: Gaussian
+      link: identity
+      contrast_method: Sum
+    transformation_state: initialized
+    is_manifested: false
     is_available: true
     metadata:
-      created_at: '2026-06-26T13:43:28.362909'
-      transformation_class: GLMBinningTransformation
-    schema:
-      target_columns:
-      - y
-      index_columns: []
-      exposure_column: null
-      exposure_columns: []
-      numeric_columns:
-      - x
-      - x_интервалы_2
-      categorical_columns: []
-      ordered_categorical_columns: []
-      fine_time_column: null
-      coarse_time_column: null
-      timing_columns: []
-      datetime_columns: []
-      available_target_columns: []
-      available_categorical_columns: []
-      available_time_columns: []
-      excluded_columns: []
-      bad_directions: null
-      comparison_mode: null
-      target_types: null
+      created_at: '2026-07-27T22:53:43.360338'
+      transformation_class: GLMModelEstimator
+      label: GLM (Gaussian)
+      fit_summary:
+        family: Gaussian
+        link: Identity
+        n_obs: 2000
+        df_residual: 1990
+        df_model: 9
+        aic: 44253.60691292108
+        bic: 44309.6159375165
+        deviance: 471803701603.1814
+        mae: 12052.027342637812
+        rmse: 15359.096679218825
+        r2: 0.7767398536427677
+        mcfadden_r2: 0.1359234108033377
+        deviance_r2: 0.1359234108033377
+        nagelkerke_r2: -0.0
+        gini: 0.8371675587738182
+        target: Оценка убытка
+        exposure: null
+        n_features: 5
+        formula: Otsenka_ubytka ~ center(Unnamed_0) + center(YearMonth) + center(Strakhovaia_summa)
+          + center(Kolichestvo_dnei_ot_sobytiia_do_uregulirovaniia) + C(Marka, Sum,
+          levels=['Lada', 'Mercedes', 'Жигули', 'Киа', 'Лада Самара', 'Мерседес-Бенц'])
+    schema: *id001
 edges:
   edge_0:
     from_vertex_id: vertex_0
-    to_vertex_id: vbin
-    transformation_type: transformer
-    transformation_class: GLMBinningTransformation
+    to_vertex_id: vertex_1
+    transformation_type: model
+    transformation_class: GLMModelEstimator
     config: *id002
     metadata:
-      created_at: '2026-06-26T13:43:28.362927'
+      created_at: '2026-07-27T22:53:43.360371'
 computed_results:
   distributions: {}
   mixture_fitting: {}

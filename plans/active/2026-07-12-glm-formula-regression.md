@@ -288,7 +288,21 @@ coefficients — met (global contrast; UI + backend + preview all wired).
 
 ## Phase 4 — Restore metrics / export
 
-**Status:** [x] module integration done (2026-07-12); UI wiring not started.
+**Status:** [x] module integration done (2026-07-12); [x] UI wiring done (2026-07-12).
+
+**UI wiring (2026-07-12) — "Export (Excel + plots)" button on fitted model nodes:**
+- `bridge_layer/hooks_registration.py` — `_export_model_results(session_id, vertex_id) -> bytes`:
+  resolves the fitted model vertex, runs `analyze_glm_model` + `export_model_results` into a temp
+  dir, **zips it**, returns the bytes (mirrors `_export_pipeline`; temp dir auto-cleaned).
+  Registered as `pipeline_hooks.export_model_results`.
+- `pipeline_hooks.py` — declared the `export_model_results` hook slot.
+- `plot_state.py` — `PlotState.export_model_results` event: builds session_id, calls the hook,
+  `rx.download(zip)`; busy spinner + success log + error toast if not fitted.
+- `results_panel.py` — a green "Export (Excel + plots)" button at the top of the model-results
+  view (`_model_results_view`, shown for fitted model nodes).
+- Verified end-to-end via the real hook + registry: guards return None for bad/unfitted vertices;
+  a fitted Gaussian model produced a **10.4 MB ZIP** with `model_results.xlsx`, `index.html`, and
+  7 interactive plot HTMLs. Frontend compiles (100%) and serves; 41 backend tests pass.
 
 **What landed (2026-07-12):** the two missing modules were sourced from the tester's tree
 (`C:\Users\Aleksandr\Downloads\glm-xv_glm\`) and integrated:

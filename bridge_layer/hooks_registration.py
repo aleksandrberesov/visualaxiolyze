@@ -1778,6 +1778,64 @@ def _export_pipeline(session_id: str, vertex_id: str) -> Optional[bytes]:
     return buf.getvalue()
 
 
+def _export_model_results(session_id: str, vertex_id: str) -> Optional[bytes]:
+    """Run the full analysis + export (Excel workbook + interactive plots) for a
+    fitted model vertex and return it as a single ZIP archive's bytes.
+
+    Mirrors ``_export_pipeline`` (backend produces bytes → UI ``rx.download``), but
+    ``export_model_results`` writes *several* files to a directory, so we run it
+    into a temp dir and zip it. Returns None if the session/vertex is missing or
+    the model isn't fitted.
+    """
+    import io
+    import os
+    import shutil
+    import tempfile
+    import zipfile
+
+    pipeline = registry.get(session_id)
+    if pipeline is None:
+        _logging.error("[_export_model_results] No pipeline for session %s", session_id)
+        return None
+    vertex = pipeline.vertices.get(vertex_id)
+    if vertex is None or vertex.vertex_type != "model":
+        _logging.error("[_export_model_results] vertex %s is not a model node", vertex_id)
+        return None
+    estimator = vertex.transformation
+    if estimator is None or not getattr(estimator, "fitted_", False):
+        _logging.error("[_export_model_results] model %s is not fitted", vertex_id)
+        return None
+    model_dict = getattr(estimator, "model_dict_", None)
+    if not model_dict:
+        return None
+
+    try:
+        from axiolyze.legacy.glm_analysis import analyze_glm_model, export_model_results
+    except Exception as exc:
+        _logging.error("[_export_model_results] import failed: %s", exc, exc_info=True)
+        return None
+
+    tmp_dir = tempfile.mkdtemp(prefix="glm_export_")
+    try:
+        analysis = analyze_glm_model(model_dict, None)
+        export_model_results(
+            analysis, output_dir=tmp_dir, show_plots=False, model_type_hint="auto",
+        )
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for root, _dirs, files in os.walk(tmp_dir):
+                for fname in files:
+                    fpath = os.path.join(root, fname)
+                    zf.write(fpath, os.path.relpath(fpath, tmp_dir))
+        return buf.getvalue()
+    except Exception as exc:
+        _logging.error("[_export_model_results] export failed: %s", exc, exc_info=True)
+        return None
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
 # ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
@@ -1831,3 +1889,4 @@ def register() -> None:
     pipeline_hooks.describe_model_formula = _describe_model_formula
     pipeline_hooks.get_model_results = _get_model_results
     pipeline_hooks.export_pipeline = _export_pipeline
+    pipeline_hooks.export_model_results = _export_model_results
