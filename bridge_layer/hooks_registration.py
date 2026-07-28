@@ -1574,6 +1574,7 @@ def _add_model_node(
     family: str,
     link: str,
     ui_node_id: str,
+    contrast_method: str = "Sum",
 ) -> Optional[str]:
     """Create a model vertex (GLMModelEstimator) as a child of parent_id."""
     pipeline = registry.get(session_id)
@@ -1590,6 +1591,7 @@ def _add_model_node(
             family=family,
             link=link,
             new_vertex_id=ui_node_id,
+            contrast_method=contrast_method,
         )
     except Exception as exc:
         _logging.error("[_add_model_node] Failed: %s", exc, exc_info=True)
@@ -1634,6 +1636,7 @@ def _describe_model_formula(
     kept_columns: Optional[List[str]],
     family: str,
     link: str,
+    contrast_method: str = "Sum",
 ) -> Optional[Dict[str, Any]]:
     """Build the GLM formula preview for the model dialog (before fitting)."""
     pipeline = registry.get(session_id)
@@ -1653,17 +1656,17 @@ def _describe_model_formula(
             target = "<target>"
             warning = ("No working target resolved — add a Tiny Schema node upstream "
                        "to choose one.")
-        elif cats:
-            warning = ("Categorical feature(s) " + ", ".join(cats) + " need an encoder "
-                       "(Target Encoding / WoE) upstream — the GLM fits numeric features only.")
 
+        # Categorical features are fitted natively via patsy C(col, <contrast>)
+        # terms (Sum contrast by default) — no upstream encoding required.
         from axiolyze.models.glm_estimator import build_glm_formula
-        formula = build_glm_formula(target, numeric, cats, exposure)
+        formula = build_glm_formula(target, numeric, cats, exposure, contrast_method)
         return {
             "formula": formula,
             "target": target,
             "family": family,
             "link": link,
+            "contrast_method": contrast_method,
             "exposure": exposure or "",
             "n_numeric": len(numeric),
             "n_categorical": len(cats),
@@ -1679,6 +1682,7 @@ def _add_model_flow(
     kept_columns: Optional[List[str]],
     family: str,
     link: str,
+    contrast_method: str = "Sum",
 ) -> Optional[Dict[str, Any]]:
     """Option-A model flow: insert ColumnRemover → hidden Transliterator → model
     upstream of the chosen node in one action.  Unselected feature columns are
@@ -1726,6 +1730,7 @@ def _add_model_flow(
             return None
         model_id = _add_model_node(
             session_id, translit_id, family, link, "ml_" + uuid.uuid4().hex[:10],
+            contrast_method=contrast_method,
         )
         if model_id is None:
             return None

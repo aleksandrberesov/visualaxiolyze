@@ -113,7 +113,8 @@
       "Bash(tasklist)",
       "Bash(curl -s -o /dev/null -w \"frontend=%{http_code}\\\\n\" http://localhost:3322/)",
       "Bash(PYTHONIOENCODING=utf-8 .dev/Scripts/python.exe -c ' *)",
-      "Bash(grep -rnB1 -A2 \"except ImportError\" deps/repo_glm/axiolyze/legacy/glm_analysis.py)"
+      "Bash(grep -rnB1 -A2 \"except ImportError\" deps/repo_glm/axiolyze/legacy/glm_analysis.py)",
+      "Bash(.dev/Scripts/python.exe \"C:/Users/ALEKSA~1/AppData/Local/Temp/claude/E--axiolyzeProject-visualaxiolyze/e7d4500f-215b-48e2-bb61-40f2ce79351e/scratchpad/audit_missing.py\")"
     ]
   }
 }

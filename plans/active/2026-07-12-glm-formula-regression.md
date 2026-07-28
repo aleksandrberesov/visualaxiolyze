@@ -249,32 +249,70 @@ Other stubs / not-fully-ported code found:
 
 ## Phase 3 — UI: contrast + model-type controls
 
-**Status:** [ ] not started
+**Status:** [x] contrast control done (2026-07-12); model-type deferred.
 
-**Files:**
-- `deps/repo_vdag/GraphVision/` model-node config dialog / guided flow (Phase 5 flow).
+**What landed:** a **global categorical-contrast selector** (Sum / Treatment / Helmert / Poly /
+Diff, default Sum) threaded end-to-end:
+- `model_config_panel.py` — contrast `rx.select` added to section "2 · GLM family, link &
+  contrast", with a live `C(col, <contrast>)` hint. Dialog intro updated.
+- `model_config_state.py` — `selected_contrast` + `contrast_methods`, `set_contrast` event;
+  restored in edit mode from `transformation_config`; threaded into `preview_formula` and `apply`.
+  **Also fixed the now-obsolete default**: the dialog defaulted to selecting only numeric columns
+  ("categoricals must be encoded upstream") — now selects all features, since categoricals fit
+  natively.
+- `GraphState.add_model_flow` / `edit_model_flow` (repo_vdag) → pass `contrast`.
+- `bridge_layer/hooks_registration.py` — `_add_model_flow` / `_add_model_node` /
+  `_describe_model_formula` thread `contrast_method`; the stale "need an encoder (Target
+  Encoding / WoE)" formula-preview warning removed.
+- `core/graph.py add_model_node` stores `contrast_method` in `transformation_config` and passes it
+  to `GLMModelEstimator`. `build_glm_formula` now emits `C(col, <contrast>)` (preview matches fit).
 
-**Steps:**
-1. Expose `contrast_method` (Sum / Treatment / Helmert / …) in the model-node config.
-2. Expose model type (frequency / severity / probability) so exposure handling is explicit.
-3. Show the real formula (with `C(cat, contrast)`) in the preview.
+**Global, not per-column:** one contrast applies to all categoricals — matches Oxana's
+`create_advanced_glm_formula` (single `contrast_method`). Per-column contrast would require
+changing her function (she said don't rebuild), so it's a future enhancement.
 
-**Done when:** the user can pick a contrast per categorical and see it reflected in the formula
-and the fitted coefficients.
+**Verified:** all 5 contrasts fit on the real dataset (identical r², differing parameterization);
+graph-level test asserts the chosen contrast reaches `estimator.formula_`; `build_glm_formula`
+contrast test; full suite **41 passed**. Reflex app recompiles clean and serves.
+
+**Deferred — model type (frequency / severity / probability):** underspecified even in the
+notebooks (Oxana: "не протянуто / не последовательно реализовано"). Exposure handling already
+auto-dispatches by family+link (`get_exposure_strategy`); a model-type override needs a defined
+backend contract from Oxana before adding a UI control that would otherwise mislead. Left as a
+follow-up.
+
+**Done when:** the user can pick a contrast and see it reflected in the formula and the fitted
+coefficients — met (global contrast; UI + backend + preview all wired).
 
 ---
 
 ## Phase 4 — Restore metrics / export
 
-**Status:** [ ] not started
+**Status:** [x] module integration done (2026-07-12); UI wiring not started.
 
-**Steps:**
-1. Port `analyze_glm_model` / `display_metrics` / `export_model_results` (or map their outputs
-   onto the node's `get_fit_summary` / analytics) so the actuarial metric set is available in the
-   graph UI.
+**What landed (2026-07-12):** the two missing modules were sourced from the tester's tree
+(`C:\Users\Aleksandr\Downloads\glm-xv_glm\`) and integrated:
+- `visualization.py` (1381 lines, self-contained — numpy/pandas/plotly/pathlib only) copied to
+  `deps/repo_glm/axiolyze/legacy/visualization.py`. Provides the 7 plot helpers
+  (`plot_coefficients`, `plot_predictions_vs_actual_interactive`, `plot_residuals_interactive`,
+  `plot_qq_interactive`, `plot_residuals_histogram_interactive`, `plot_calibration_plot_simple`,
+  `plot_crunched_residuals_interactive`). The guarded `from .visualization import *` now resolves.
+- `compute_pipeline_hash` + `_pipeline_to_hash_input` appended **additively** to
+  `legacy/io_utils.py` (repo's own `save_*` helpers kept). The guarded
+  `from .io_utils import compute_pipeline_hash` now resolves.
 
-**Done when:** the model node reports McFadden/Deviance/Nagelkerke R² and ordered-Lorenz Gini,
-matching the notebook flow on the same data.
+**Verified end-to-end (real dataset):** `fit → analyze_glm_model → display_metrics →
+export_model_results` runs clean; produced `model_results.xlsx` + interactive plotly HTML
+(coefficient charts, predictions-vs-actual, QQ, residuals, crunched residuals, index.html).
+Model type auto-detected as `severity`. Full suite **39 passed**; app boot chain still imports.
+
+**Remaining (UI wiring — not the module work):** nothing in `bridge_layer`/`GraphVision` calls
+`analyze_glm_model`/`export_model_results` yet, so this is dormant until a UI action (e.g. an
+"Export model" button / analytics panel) is added to the model node. The node's own live metrics
+(`get_fit_summary` → McFadden/Deviance/Nagelkerke R², Gini) already work independently.
+
+**Done when:** the model node reports McFadden/Deviance/Nagelkerke R² and ordered-Lorenz Gini
+(already met), and — for full parity — a UI action triggers `export_model_results`.
 
 ---
 
